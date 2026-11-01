@@ -506,7 +506,7 @@ local function BuildEvents(page, area, tab)
    PickColor(row.swatch, Profile().EventSettings[row.eventType].FontSettings.Color)
   end)
   row.swatch:SetPoint("LEFT", row, "LEFT", 190, 0)
-  row.message = MessageButton(prefix .. i .. "Message", row, 214, 220, function()
+  row.message = MessageButton(prefix .. i .. "Message", row, 214, area == "Notification" and 168 or 220, function()
    EditInline(row.message, Profile().EventSettings[row.eventType].Message, function(text)
     Profile().EventSettings[row.eventType].Message = text
     refresh[tab]()
@@ -519,6 +519,12 @@ local function BuildEvents(page, area, tab)
     refresh[tab]()
    end, {ghost = true})
    UI.Tooltip(row.sticky, "Pop this event in the middle of the area instead of scrolling it.")
+   row.icon = UI.Button(prefix .. i .. "Icon", row, "Icon", 386, -2, 48, function()
+    local settings = Profile().EventSettings[row.eventType]
+    settings.BigIcon = not settings.BigIcon
+    refresh[tab]()
+   end, {ghost = true})
+   UI.Tooltip(row.icon, "Show a large icon beside this message.")
   end
   row.font = UI.Button(prefix .. i .. "Font", row, "Font", 494, -2, 44, function()
    MikSBTOpt.EditEventFonts(area, row.eventType)
@@ -542,6 +548,14 @@ local function BuildEvents(page, area, tab)
     PaintSwatch(row.swatch, settings.FontSettings.Color)
     row.message:SetText(settings.Message or "")
     if row.sticky then UI.Select(row.sticky, settings.IsSticky and true or false) end
+    if row.icon then
+     if MikSBT.BIG_ICONS[entry.Type] then
+      row.icon:Show()
+      UI.Select(row.icon, settings.BigIcon and true or false)
+     else
+      row.icon:Hide()
+     end
+    end
     row:Show()
    else
     row:Hide()

@@ -577,6 +577,12 @@ function MikSBT.CombatEventsHandler(combatEvent)
   animationEvent.EventType = eventTypeString;
   animationEvent.EventSettings = MikSBT.CurrentProfile.EventSettings[animationEvent.EventType];
   animationEvent.UnformattedText = animationEvent.EventSettings.Message;
+  -- A large icon beside the message, when the player turned it on for this event.
+  local bigIcon = MikSBT.BIG_ICONS[eventTypeString];
+  if (bigIcon and animationEvent.EventSettings.BigIcon) then
+   animationEvent.Texture = bigIcon;
+   animationEvent.IconScale = MikSBT.BIG_ICON_SCALE;
+  end
 
   -- Dispatch the event to the animation system.
   MikSBT.DispatchAnimationEvent(animationEvent);
@@ -1485,6 +1491,7 @@ function MikSBT.AddAnimation(animationEvent)
  animDisplayInfo.AnchorPoint = MikSBT.AVAILABLE_TEXT_ALIGNS[animationEvent.ScrollArea.DisplaySettings.FontSettings.TextAlignIndex].AnchorPoint;
  animDisplayInfo.IsCrit = animationEvent.IsCrit;
  animDisplayInfo.IsSticky = animationEvent.IsSticky;
+ animDisplayInfo.IconScale = animationEvent.IconScale or 1;
 
  if (animationEvent.EventType == "MSBT_EVENTTYPE_OUTGOING_SPELL_RESIST") then 
   -- play sound if enabled
@@ -1526,8 +1533,8 @@ function MikSBT.AddAnimation(animationEvent)
 		end
 		animDisplayInfo.Texture:ClearAllPoints();
 		animDisplayInfo.Texture:SetTexture(texture);
-		animDisplayInfo.Texture:SetWidth(animDisplayInfo.FontSize);
-		animDisplayInfo.Texture:SetHeight(animDisplayInfo.FontSize);
+		animDisplayInfo.Texture:SetWidth(animDisplayInfo.FontSize * animDisplayInfo.IconScale);
+		animDisplayInfo.Texture:SetHeight(animDisplayInfo.FontSize * animDisplayInfo.IconScale);
 		animDisplayInfo.Texture:SetTexCoord(0.125, 0.875, 0.125, 0.875)
 		animDisplayInfo.Texture:SetPoint("RIGHT", animDisplayInfo.FontObject, "LEFT", -4, 0);
 		animDisplayInfo.Texture:SetDrawLayer(animDisplayInfo.IsSticky and "OVERLAY" or animDisplayInfo.IsCrit and "OVERLAY" or "ARTWORK");
@@ -1854,7 +1861,7 @@ function MikSBT.DoAnimation(animDisplayInfo, scrollArea)
     if texture then texture:SetAlpha(1) end
    end
    fontObject:SetTextHeight(size);
-   if texture then texture:SetWidth(size); texture:SetHeight(size) end
+   if texture then texture:SetWidth(size * animDisplayInfo.IconScale); texture:SetHeight(size * animDisplayInfo.IconScale) end
    PlaceSticky(animDisplayInfo);
    return;
 
@@ -1865,8 +1872,8 @@ function MikSBT.DoAnimation(animDisplayInfo, scrollArea)
     fontObject:SetTextHeight(animDisplayInfo.FontSize);
     if texture then
      texture:SetAlpha(1);
-     texture:SetWidth(animDisplayInfo.FontSize);
-     texture:SetHeight(animDisplayInfo.FontSize);
+     texture:SetWidth(animDisplayInfo.FontSize * animDisplayInfo.IconScale);
+     texture:SetHeight(animDisplayInfo.FontSize * animDisplayInfo.IconScale);
     end
    end
    if animDisplayInfo.IsCrit then

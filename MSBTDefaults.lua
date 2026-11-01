@@ -12,6 +12,15 @@ MikSBT = {};
 -------------------------------------------------------------------------------
 
 MikSBT.MOD_NAME		= "MikScrollingBattleText"
+
+-- Events that can show a large icon beside their message (the "Icon" button in
+-- the Notices tab), and the icon each one uses.
+-- UNVERIFIED: test in game that both icon files exist in this client.
+MikSBT.BIG_ICONS = {
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = "Interface\\Icons\\Ability_DualWield",
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = "Interface\\Icons\\Spell_Nature_Sleep",
+}
+MikSBT.BIG_ICON_SCALE = 2
 MikSBT.VERSION_STRING	= "v" .. GetAddOnMetadata("MikScrollingBattleText", "Version");
 MikSBT.COMMAND		= "/msbt";
 
@@ -969,6 +978,7 @@ MikSBT.DEFAULT_CONFIG = {
    Show						= true,
    Message						= "+Combat",
    IsSticky						= false,
+   BigIcon						= false,
    FontSettings = {
     Color						= {r=1, g=1, b=1},
     Normal 						= {FontIndex=0, OutlineIndex=0, FontSize=0},
@@ -978,6 +988,7 @@ MikSBT.DEFAULT_CONFIG = {
    Show						= true,
    Message						= "-Combat",
    IsSticky						= false,
+   BigIcon						= false,
    FontSettings = {
     Color						= {r=1, g=1, b=1},
     Normal 						= {FontIndex=0, OutlineIndex=0, FontSize=0},
