@@ -15,10 +15,13 @@ MikSBT.MOD_NAME		= "MikScrollingBattleText"
 
 -- Events that can show a large icon beside their message (the "Icon" button in
 -- the Notices tab), and the icon each one uses.
--- UNVERIFIED: test in game that both icon files exist in this client.
+-- Leaving combat shows the gold check mark every checkbox uses (a clear "all clear");
+-- entering shows crossed swords. "full" draws the whole texture; spell icons are
+-- cropped to hide their border.
+-- UNVERIFIED: test in game that the swords icon shows a picture.
 MikSBT.BIG_ICONS = {
- MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = "Interface\\Icons\\Ability_DualWield",
- MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = "Interface\\Icons\\Spell_Nature_Sleep",
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = {texture = "Interface\\Icons\\Ability_DualWield"},
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {texture = "Interface\\Buttons\\UI-CheckBox-Check", full = true},
 }
 MikSBT.BIG_ICON_SCALE = 2
 MikSBT.VERSION_STRING	= "v" .. GetAddOnMetadata("MikScrollingBattleText", "Version");

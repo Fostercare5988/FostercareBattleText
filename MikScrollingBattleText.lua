@@ -580,7 +580,8 @@ function MikSBT.CombatEventsHandler(combatEvent)
   -- A large icon beside the message, when the player turned it on for this event.
   local bigIcon = MikSBT.BIG_ICONS[eventTypeString];
   if (bigIcon and animationEvent.EventSettings.BigIcon) then
-   animationEvent.Texture = bigIcon;
+   animationEvent.Texture = bigIcon.texture;
+   animationEvent.IconFull = bigIcon.full;
    animationEvent.IconScale = MikSBT.BIG_ICON_SCALE;
   end
 
@@ -1492,6 +1493,7 @@ function MikSBT.AddAnimation(animationEvent)
  animDisplayInfo.IsCrit = animationEvent.IsCrit;
  animDisplayInfo.IsSticky = animationEvent.IsSticky;
  animDisplayInfo.IconScale = animationEvent.IconScale or 1;
+ animDisplayInfo.IconFull = animationEvent.IconFull;
 
  if (animationEvent.EventType == "MSBT_EVENTTYPE_OUTGOING_SPELL_RESIST") then 
   -- play sound if enabled
@@ -1535,7 +1537,8 @@ function MikSBT.AddAnimation(animationEvent)
 		animDisplayInfo.Texture:SetTexture(texture);
 		animDisplayInfo.Texture:SetWidth(animDisplayInfo.FontSize * animDisplayInfo.IconScale);
 		animDisplayInfo.Texture:SetHeight(animDisplayInfo.FontSize * animDisplayInfo.IconScale);
-		animDisplayInfo.Texture:SetTexCoord(0.125, 0.875, 0.125, 0.875)
+		if animDisplayInfo.IconFull then animDisplayInfo.Texture:SetTexCoord(0, 1, 0, 1)
+		else animDisplayInfo.Texture:SetTexCoord(0.125, 0.875, 0.125, 0.875) end
 		animDisplayInfo.Texture:SetPoint("RIGHT", animDisplayInfo.FontObject, "LEFT", -4, 0);
 		animDisplayInfo.Texture:SetDrawLayer(animDisplayInfo.IsSticky and "OVERLAY" or animDisplayInfo.IsCrit and "OVERLAY" or "ARTWORK");
 	elseif animDisplayInfo.Texture then
