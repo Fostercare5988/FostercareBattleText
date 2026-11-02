@@ -714,7 +714,7 @@ end
 -------------------------------------------------------------------------------------
 
 function MikCEH.GetGlobalStringInfo(globalStringName)
- local globalString = getglobal(globalStringName);
+ local globalString = _G[globalStringName];
  if type(globalString) ~= "string" then return nil end
 
  if (globalStringInfoArray[globalStringName] == nil) then

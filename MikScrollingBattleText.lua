@@ -16,7 +16,6 @@ local string_find, string_gsub = string.find, string.gsub
 local table_insert = table.insert
 local math_ceil, math_floor, math_random = math.ceil, math.floor, math.random
 local GetTime = GetTime
-local getglobal = getglobal
 local tonumber = tonumber
 local UnitClass = UnitClass
 
@@ -427,7 +426,9 @@ function MikSBT.SetupAnimationScrollAreas()
 
  -- Loop through the scroll areas.
  for _, scrollArea in scrollAreas do
-  getglobal(scrollArea.AssociatedFrame).MSBTScrollArea = scrollArea;
+  -- The frame itself, so no message looks it up by name.
+  scrollArea.Frame = _G[scrollArea.AssociatedFrame];
+  scrollArea.Frame.MSBTScrollArea = scrollArea;
 
   -- Initialize the next available animation display object.
   scrollArea.NextAnimationDisplay = 1;
@@ -442,7 +443,7 @@ function MikSBT.SetupAnimationScrollAreas()
   -- Associate the appropriate font string object for each animation display object.
   for x = 1, NUM_FONT_STRINGS do
    scrollArea.AnimationDisplayArray[x] = {};
-   scrollArea.AnimationDisplayArray[x].FontObject = getglobal(scrollArea.AssociatedFrame .. "Text" .. x);
+   scrollArea.AnimationDisplayArray[x].FontObject = _G[scrollArea.AssociatedFrame .. "Text" .. x];
    scrollArea.AnimationDisplayArray[x].LastUpdated = 0;
   end
  end
@@ -455,7 +456,7 @@ end
 function MikSBT.RepositionAnimationFrames()
  -- Loop through each scroll area and reposition its associated frame.
  for _, scrollArea in scrollAreas do
-  getglobal(scrollArea.AssociatedFrame):SetPoint("BOTTOM", "UIParent", "CENTER", scrollArea.DisplaySettings.FrameOffsets.x, scrollArea.DisplaySettings.FrameOffsets.y);
+  scrollArea.Frame:SetPoint("BOTTOM", "UIParent", "CENTER", scrollArea.DisplaySettings.FrameOffsets.x, scrollArea.DisplaySettings.FrameOffsets.y);
  end
 end
 
@@ -1325,7 +1326,7 @@ function MikSBT.ClearPendingEvents()
    info.FontObject:SetAlpha(0);
    if info.Texture then info.Texture:SetAlpha(0) end
   end
-  getglobal(area.AssociatedFrame):Hide();
+  area.Frame:Hide();
  end
 end
 
@@ -1540,7 +1541,7 @@ function MikSBT.AddAnimation(animationEvent)
 
 	if texture then
 		if not animDisplayInfo.Texture then
-			animDisplayInfo.Texture = getglobal(animationEvent.ScrollArea.AssociatedFrame):CreateTexture(nil, "ARTWORK")
+			animDisplayInfo.Texture = animationEvent.ScrollArea.Frame:CreateTexture(nil, "ARTWORK")
 		end
 		animDisplayInfo.Texture:ClearAllPoints();
 		animDisplayInfo.Texture:SetTexture(texture);
@@ -1562,9 +1563,8 @@ function MikSBT.AddAnimation(animationEvent)
 	animDisplayInfo.LastUpdated = GetTime();
 	animDisplayInfo.IsActive = true;
 
-	if (not getglobal(animationEvent.ScrollArea.AssociatedFrame):IsVisible()) then
-		getglobal(animationEvent.ScrollArea.AssociatedFrame):Show();
-	end
+	local areaFrame = animationEvent.ScrollArea.Frame;
+	if (not areaFrame:IsVisible()) then areaFrame:Show() end
 
 	if (animDisplayInfo.IsSticky or (animDisplayInfo.IsCrit and MikSBT.CurrentProfile.UseStickyCrits)) then
 		MikSBT.RepositionStickyAnimDisplayInfo(animationEvent.ScrollArea);
