@@ -14,7 +14,6 @@ if not MSBT_REQUIREMENTS_MET then return end
 -- Upvalue caches for frequently called functions.
 local string_find, string_gsub = string.find, string.gsub
 local table_insert = table.insert
-local table_setn = table.setn
 local math_ceil, math_floor, math_random = math.ceil, math.floor, math.random
 local GetTime = GetTime
 local getglobal = getglobal
@@ -804,10 +803,8 @@ function MikSBT.MergeEvents(mergeData, unmergedEvents, numEvents)
    -- Reclaim the animation event table to the events recycler.
    eventsRecycler:ReclaimTable(unmergedEvents[x]);
   end
-
-  unmergedEvents[x] = nil;
  end
- if table_setn then pcall(table_setn, unmergedEvents, 0); end
+ table.wipe(unmergedEvents);
 end
 
 
@@ -1248,7 +1245,7 @@ function MikSBT.GetOptionFromVarPath(varPath)
  local currentTable = MikSBT.CurrentProfile;
 
  -- Index into each sub table until we reach the actual variable wanted.
- for varName in string.gfind(varPath, "[%w_]+") do
+ for varName in string.gmatch(varPath, "[%w_]+") do
   if (type(currentTable[varName]) == "table") then
    currentTable = currentTable[varName];
   else
@@ -1269,7 +1266,7 @@ function MikSBT.SetOptionFromVarPath(varPath, newValue)
  if (not currentTable or not varPath) then return end
 
  local keys = {};
- for varName in string.gfind(varPath, "[%w_]+") do
+ for varName in string.gmatch(varPath, "[%w_]+") do
   table.insert(keys, varName);
  end
 

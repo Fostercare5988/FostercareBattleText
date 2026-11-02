@@ -10,7 +10,7 @@ if not MSBT_REQUIREMENTS_MET then return end
 -- Create namespace.
 MikCEH = {};
 
-local string_find, string_gfind = string.find, string.gfind
+local string_find, string_match = string.find, string.match
 local string_len, string_sub = string.len, string.sub
 local table_wipe = table.wipe
 local GetTime, UnitHealth, UnitHealthMax = GetTime, UnitHealth, UnitHealthMax
@@ -776,7 +776,7 @@ function MikCEH.GetCapturedData(combatMessage, globalStringName, captureOrder)
  if not globalStringInfo then return nil end
 
  MikCEH.EraseTable(orderedCaptureData);
- local temp = {string_gfind(combatMessage, globalStringInfo.Search)()};
+ local temp = {string_match(combatMessage, globalStringInfo.Search)};
  if (#temp ~= 0) then
   for argNum, substituteValue in pairs(captureOrder) do
    local captureString;
