@@ -34,8 +34,9 @@ message to edit it (Enter saves, Escape keeps the old text), and **Font** edits
 its font. The message tooltip lists the codes it fills, such as `%a` amount,
 `%n` name, `%s` spell and `%t` damage type. On Notices, **Sticky** pops the event
 in the middle of the area instead of scrolling it. On the Enter Combat and Leave
-Combat rows, **Icon** adds a large picture (twice the text size) beside "+Combat" or
-"-Combat". The arrows at the bottom turn the page.
+Combat rows, **Icon** adds crossed swords (twice the text size) beside "+Combat",
+or the same swords in red beside "-Combat". "+Combat" is green and "-Combat" red
+unless you pick other colors. The arrows at the bottom turn the page.
 
 All combat text comes from ClassicAPI's combat log. Heals show the total; the
 log reports no overheal. Killing blows count a player kill even when you never

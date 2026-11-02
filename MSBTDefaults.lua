@@ -14,14 +14,17 @@ MikSBT = {};
 MikSBT.MOD_NAME		= "MikScrollingBattleText"
 
 -- Events that can show a large icon beside their message (the "Icon" button in
--- the Notices tab), and the icon each one uses.
--- Leaving combat shows the gold check mark every checkbox uses (a clear "all clear");
--- entering shows crossed swords. "full" draws the whole texture; spell icons are
--- cropped to hide their border.
--- UNVERIFIED: test in game that the swords icon shows a picture.
+-- the Notices tab), and the icon each one uses. Both combat notices show the
+-- crossed swords; leaving combat greys them and tints them red ("tint").
+-- "full" would draw the whole texture; spell icons are cropped to hide their border.
 MikSBT.BIG_ICONS = {
  MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = {texture = "Interface\\Icons\\Ability_DualWield"},
- MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {texture = "Interface\\Buttons\\UI-CheckBox-Check", full = true},
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {texture = "Interface\\Icons\\Ability_DualWield", tint = {1, 0.2, 0.2}},
+}
+-- "+Combat" green, "-Combat" red. Profiles that kept the old white take these.
+MikSBT.COMBAT_COLORS = {
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = {r=0.25, g=1, b=0.25},
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {r=1, g=0.25, b=0.25},
 }
 MikSBT.BIG_ICON_SCALE = 2
 MikSBT.VERSION_STRING	= "v" .. GetAddOnMetadata("MikScrollingBattleText", "Version");
@@ -983,7 +986,7 @@ MikSBT.DEFAULT_CONFIG = {
    IsSticky						= false,
    BigIcon						= false,
    FontSettings = {
-    Color						= {r=1, g=1, b=1},
+    Color						= {r=0.25, g=1, b=0.25},
     Normal 						= {FontIndex=0, OutlineIndex=0, FontSize=0},
    },
   },
@@ -993,7 +996,7 @@ MikSBT.DEFAULT_CONFIG = {
    IsSticky						= false,
    BigIcon						= false,
    FontSettings = {
-    Color						= {r=1, g=1, b=1},
+    Color						= {r=1, g=0.25, b=0.25},
     Normal 						= {FontIndex=0, OutlineIndex=0, FontSize=0},
    },
   },

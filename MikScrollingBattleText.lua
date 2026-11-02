@@ -582,6 +582,7 @@ function MikSBT.CombatEventsHandler(combatEvent)
   if (bigIcon and animationEvent.EventSettings.BigIcon) then
    animationEvent.Texture = bigIcon.texture;
    animationEvent.IconFull = bigIcon.full;
+   animationEvent.IconTint = bigIcon.tint;
    animationEvent.IconScale = MikSBT.BIG_ICON_SCALE;
   end
 
@@ -971,6 +972,14 @@ function MikSBT.UpdateProfiles()
   profile.CreationVersion = nil;
   if (type(profile.EventSettings) == "table") then
    profile.EventSettings.MSBT_EVENTTYPE_NOTIFICATION_ITEM_BUFF = nil;
+   -- The combat notices were white; a profile that kept white takes green/red.
+   for key, color in pairs(MikSBT.COMBAT_COLORS) do
+    local event = profile.EventSettings[key];
+    local old = type(event) == "table" and type(event.FontSettings) == "table" and event.FontSettings.Color;
+    if (type(old) == "table" and old.r == 1 and old.g == 1 and old.b == 1) then
+     old.r, old.g, old.b = color.r, color.g, color.b;
+    end
+   end
   end
   -- The Wisdom suppression guessed amounts (+30/33/39/50/53/59 of any mana);
   -- it now names the Judgement of Wisdom mana return.
@@ -1494,6 +1503,7 @@ function MikSBT.AddAnimation(animationEvent)
  animDisplayInfo.IsSticky = animationEvent.IsSticky;
  animDisplayInfo.IconScale = animationEvent.IconScale or 1;
  animDisplayInfo.IconFull = animationEvent.IconFull;
+ animDisplayInfo.IconTint = animationEvent.IconTint;
 
  if (animationEvent.EventType == "MSBT_EVENTTYPE_OUTGOING_SPELL_RESIST") then 
   -- play sound if enabled
@@ -1539,6 +1549,11 @@ function MikSBT.AddAnimation(animationEvent)
 		animDisplayInfo.Texture:SetHeight(animDisplayInfo.FontSize * animDisplayInfo.IconScale);
 		if animDisplayInfo.IconFull then animDisplayInfo.Texture:SetTexCoord(0, 1, 0, 1)
 		else animDisplayInfo.Texture:SetTexCoord(0.125, 0.875, 0.125, 0.875) end
+		-- The texture is reused by the next message: always set its colour.
+		local tint = animDisplayInfo.IconTint
+		animDisplayInfo.Texture:SetDesaturated(tint and true or false)
+		if tint then animDisplayInfo.Texture:SetVertexColor(tint[1], tint[2], tint[3])
+		else animDisplayInfo.Texture:SetVertexColor(1, 1, 1) end
 		animDisplayInfo.Texture:SetPoint("RIGHT", animDisplayInfo.FontObject, "LEFT", -4, 0);
 		animDisplayInfo.Texture:SetDrawLayer(animDisplayInfo.IsSticky and "OVERLAY" or animDisplayInfo.IsCrit and "OVERLAY" or "ARTWORK");
 	elseif animDisplayInfo.Texture then
