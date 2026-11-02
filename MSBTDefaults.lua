@@ -15,16 +15,16 @@ MikSBT.MOD_NAME		= "MikScrollingBattleText"
 
 -- Events that can show a large icon beside their message (the "Icon" button in
 -- the Notices tab), and the icon each one uses. Both combat notices show the
--- crossed swords; leaving combat greys them and tints them red ("tint").
+-- crossed swords, greyed and tinted ("tint"): red in combat, green out of it.
 -- "full" would draw the whole texture; spell icons are cropped to hide their border.
 MikSBT.BIG_ICONS = {
- MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = {texture = "Interface\\Icons\\Ability_DualWield"},
- MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {texture = "Interface\\Icons\\Ability_DualWield", tint = {1, 0.2, 0.2}},
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = {texture = "Interface\\Icons\\Ability_DualWield", tint = {1, 0.2, 0.2}},
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {texture = "Interface\\Icons\\Ability_DualWield", tint = {0.2, 1, 0.2}},
 }
--- "+Combat" green, "-Combat" red. Profiles that kept the old white take these.
+-- "+Combat" red, "-Combat" green. Profiles that kept a shipped colour take these.
 MikSBT.COMBAT_COLORS = {
- MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = {r=0.25, g=1, b=0.25},
- MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {r=1, g=0.25, b=0.25},
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER = {r=1, g=0.25, b=0.25},
+ MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE = {r=0.25, g=1, b=0.25},
 }
 MikSBT.BIG_ICON_SCALE = 2
 MikSBT.VERSION_STRING	= "v" .. GetAddOnMetadata("MikScrollingBattleText", "Version");
@@ -986,7 +986,7 @@ MikSBT.DEFAULT_CONFIG = {
    IsSticky						= false,
    BigIcon						= false,
    FontSettings = {
-    Color						= {r=0.25, g=1, b=0.25},
+    Color						= {r=1, g=0.25, b=0.25},
     Normal 						= {FontIndex=0, OutlineIndex=0, FontSize=0},
    },
   },
@@ -996,7 +996,7 @@ MikSBT.DEFAULT_CONFIG = {
    IsSticky						= false,
    BigIcon						= false,
    FontSettings = {
-    Color						= {r=1, g=0.25, b=0.25},
+    Color						= {r=0.25, g=1, b=0.25},
     Normal 						= {FontIndex=0, OutlineIndex=0, FontSize=0},
    },
   },

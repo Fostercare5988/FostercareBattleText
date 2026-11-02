@@ -972,11 +972,13 @@ function MikSBT.UpdateProfiles()
   profile.CreationVersion = nil;
   if (type(profile.EventSettings) == "table") then
    profile.EventSettings.MSBT_EVENTTYPE_NOTIFICATION_ITEM_BUFF = nil;
-   -- The combat notices were white; a profile that kept white takes green/red.
+   -- The combat notices were white, then (1.2.1) green in and red out; a
+   -- profile that kept either takes red in combat, green out of it.
    for key, color in pairs(MikSBT.COMBAT_COLORS) do
     local event = profile.EventSettings[key];
     local old = type(event) == "table" and type(event.FontSettings) == "table" and event.FontSettings.Color;
-    if (type(old) == "table" and old.r == 1 and old.g == 1 and old.b == 1) then
+    if (type(old) == "table" and ((old.r == 1 and old.g == 1 and old.b == 1)
+        or (old.r == color.g and old.g == color.r and old.b == color.b))) then
      old.r, old.g, old.b = color.r, color.g, color.b;
     end
    end
