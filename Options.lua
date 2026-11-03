@@ -1,14 +1,120 @@
 -------------------------------------------------------------------------------------
--- Title: Mik's Scrolling Battle Text: settings window (ForgeUI)
--- Author: Mik, Fostercare5988
--- Maintainer: Fostercare5988
+-- FostercareBattleText: the settings window (ForgeUI).
 -------------------------------------------------------------------------------------
 
--- ClassicAPIRequirement.lua checks the DLLs.
-if not MSBT_REQUIREMENTS_MET then return end
+local addonName, FBT = ...
+if not FBT.ready then return end
 
-local addonName, ns = ...
-local UI = ns.UI
+local UI, Combat = FBT.UI, FBT.Combat
+local Options = {}
+FBT.Options = Options
+
+-- Event rows per scroll area: event type, label, tooltip and the codes it fills.
+local EVENTS = {
+ Incoming = {
+  {Type="MSBT_EVENTTYPE_INCOMING_DAMAGE", Label="Melee Damage", Tip="Show incoming melee damage.", Codes="%a - Amount of damage taken.\n%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_MISS", Label="Melee Misses", Tip="Show incoming melee misses.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_DODGE", Label="Melee Dodges", Tip="Show incoming melee dodges.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PARRY", Label="Melee Parries", Tip="Show incoming melee parries.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_BLOCK", Label="Melee Blocks", Tip="Show incoming melee blocks.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_ABSORB", Label="Melee Absorbs", Tip="Show absorbed incoming melee damage.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_IMMUNE", Label="Melee Immunes", Tip="Show incoming melee damage you are immune to.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_EVADE", Label="Melee Evades", Tip="Show incoming melee evades.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_DAMAGE", Label="Ability/Spell Damage", Tip="Show incoming spell and ability damage.", Codes="%a - Amount of damage taken.\n%n - Name of the attacker.\n%s - Name of the spell or ability.\n%t - Type of damage taken."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_DOT", Label="Ability/Spell DoTs", Tip="Show incoming spell and ability damage over time.", Codes="%a - Amount of damage taken.\n%n - Name of the attacker.\n%s - Name of the spell or ability.\n%t - Type of damage taken."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_MISS", Label="Ability Misses", Tip="Show incoming ability misses.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_DODGE", Label="Ability Dodges", Tip="Show incoming ability dodges.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_PARRY", Label="Ability Parries", Tip="Show incoming ability parries.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_BLOCK", Label="Ability Blocks", Tip="Show incoming ability blocks.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_RESIST", Label="Spell Resists", Tip="Show incoming spell resists.", Codes="%n - Name of the attacker.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_ABSORB", Label="Ability/Spell Absorbs", Tip="Show absorbed damage from incoming spells and abilities.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_IMMUNE", Label="Ability/Spell Immunes", Tip="Show incoming spell and ability damage you are immune to.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_REFLECT", Label="Ability/Spell Reflects", Tip="Show incoming spell and ability damage you reflected.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_SPELL_EVADE", Label="Ability/Spell Evades", Tip="Show incoming spell and ability evades.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_HEAL", Label="Heals", Tip="Show incoming heals.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_HOT", Label="Heals Over Time", Tip="Show incoming heals over time.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_ENVIRONMENTAL", Label="Environmental Damage", Tip="Show environmental (falling, drowning, lava, etc...) damage.", Codes="%a - Amount of damage taken.\n%s - Name of the source of the damage (falling, drowning, lava, etc...)"},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_DAMAGE", Label="Pet Melee Damage", Tip="Show incoming melee damage on your pet.", Codes="%a - Amount of damage taken.\n%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_MISS", Label="Pet Melee Misses", Tip="Show incoming melee misses on your pet.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_DODGE", Label="Pet Melee Dodges", Tip="Show incoming melee dodges on your pet.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_PARRY", Label="Pet Melee Parries", Tip="Show incoming melee parries on your pet.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_BLOCK", Label="Pet Melee Blocks", Tip="Show incoming melee blocks on your pet.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_ABSORB", Label="Pet Melee Absorbs", Tip="Show absorbed incoming melee damage on your pet.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_IMMUNE", Label="Pet Melee Immunes", Tip="Show incoming melee damage your pet is immune to.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_EVADE", Label="Pet Melee Evades", Tip="Show incoming melee evades on your pet.", Codes="%n - Name of the attacker."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_DAMAGE", Label="Pet Ability/Spell Damage", Tip="Show incoming spell and ability damage on your pet.", Codes="%a - Amount of damage taken.\n%n - Name of the attacker.\n%s - Name of the spell or ability.\n%t - Type of damage taken."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_DOT", Label="Pet Ability/Spell DoTs", Tip="Show incoming spell and ability damage over time on your pet.", Codes="%a - Amount of damage taken.\n%n - Name of the attacker.\n%s - Name of the spell or ability.\n%t - Type of damage taken."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_MISS", Label="Pet Ability Misses", Tip="Show incoming ability misses on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_DODGE", Label="Pet Ability Dodges", Tip="Show incoming ability dodges on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_PARRY", Label="Pet Ability Parries", Tip="Show incoming ability parries on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_BLOCK", Label="Pet Ability Blocks", Tip="Show incoming ability blocks on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_RESIST", Label="Pet Spell Resists", Tip="Show incoming spell resists on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_ABSORB", Label="Pet Ability/Spell Absorbs", Tip="Show absorbed damage from incoming spells and abilities on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_IMMUNE", Label="Pet Ability/Spell Immunes", Tip="Show incoming spell and ability damage your pet is immune to.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_EVADE", Label="Pet Ability/Spell Evades", Tip="Show incoming spell and ability evades on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_REFLECT", Label="Pet Ability/Spell Reflects", Tip="Show incoming spell and ability reflects on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_HEAL", Label="Pet Heals", Tip="Show incoming heals on your pet.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_HOT", Label="Pet Heals Over Time", Tip="Show incoming heals over time on your pet.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
+ },
+ Outgoing = {
+  {Type="MSBT_EVENTTYPE_OUTGOING_DAMAGE", Label="Melee Damage", Tip="Show outgoing melee damage.", Codes="%a - Amount of damage done.\n%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_MISS", Label="Melee Misses", Tip="Show outgoing melee misses.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_DODGE", Label="Melee Dodges", Tip="Show outgoing melee dodges.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PARRY", Label="Melee Parries", Tip="Show outgoing melee parries.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_BLOCK", Label="Melee Blocks", Tip="Show outgoing melee blocks.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_ABSORB", Label="Melee Absorbs", Tip="Show absorbed outgoing melee damage.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_IMMUNE", Label="Melee Immunes", Tip="Show outgoing melee damage the enemy is immune to.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_EVADE", Label="Melee Evades", Tip="Show outgoing melee evades.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_DAMAGE", Label="Ability/Spell Damage", Tip="Show outgoing spell and ability damage.", Codes="%a - Amount of damage done.\n%n - Name of the attacked unit.\n%s - Name of the spell or ability.\n%t - Type of damage done."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_DOT", Label="Ability/Spell DoTs", Tip="Show outgoing spell and ability damage over time.", Codes="%a - Amount of damage done.\n%n - Name of the attacked unit.\n%s - Name of the spell or ability.\n%t - Type of damage done."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_MISS", Label="Ability Misses", Tip="Show outgoing ability misses.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_DODGE", Label="Ability Dodges", Tip="Show outgoing ability dodges.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_PARRY", Label="Ability Parries", Tip="Show outgoing ability parries.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_BLOCK", Label="Ability Blocks", Tip="Show outgoing ability blocks.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_RESIST", Label="Spell Resists", Tip="Show outgoing spell resists.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_ABSORB", Label="Ability/Spell Absorbs", Tip="Show absorbed damage from outgoing spells and abilities.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_IMMUNE", Label="Ability/Spell Immunes", Tip="Show outgoing spell and ability damage the enemy is immune to.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_REFLECT", Label="Ability/Spell Reflects", Tip="Show outgoing spell and ability damage reflected back to you.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_EVADE", Label="Ability/Spell Evades", Tip="Show outgoing spell and ability evades.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_HEAL", Label="Heals", Tip="Show outgoing heals.", Codes="%a - Amount of healing done.\n%n - Name of the healed unit.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_HOT", Label="Heals Over Time", Tip="Show outgoing heals over time.", Codes="%a - Amount of healing done.\n%n - Name of the healed unit.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_DAMAGE", Label="Pet Melee Damage", Tip="Show your pet's outgoing melee damage.", Codes="%a - Amount of damage done.\n%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_MISS", Label="Pet Melee Misses", Tip="Show your pet's outgoing melee misses.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_DODGE", Label="Pet Melee Dodges", Tip="Show your pet's outgoing melee dodges.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_PARRY", Label="Pet Melee Parries", Tip="Show your pet's outgoing melee parries.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_BLOCK", Label="Pet Melee Blocks", Tip="Show your pet's outgoing melee blocks.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_ABSORB", Label="Pet Melee Absorbs", Tip="Show your pet's absorbed outgoing melee damage.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_IMMUNE", Label="Pet Melee Immunes", Tip="Show your pet's outgoing melee damage the enemy is immune to.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_EVADE", Label="Pet Melee Evades", Tip="Show your pet's outgoing melee evades.", Codes="%n - Name of the attacked unit."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_DAMAGE", Label="Pet Ability/Spell Damage", Tip="Show your pet's outgoing spell and ability damage.", Codes="%a - Amount of damage done.\n%n - Name of the attacked unit.\n%s - Name of the spell or ability.\n%t - Type of damage done."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_MISS", Label="Pet Ability Misses", Tip="Show your pet's outgoing ability misses.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_DODGE", Label="Pet Ability Dodges", Tip="Show your pet's outgoing ability dodges.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_PARRY", Label="Pet Ability Parries", Tip="Show your pet's outgoing ability parries.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_BLOCK", Label="Pet Ability Blocks", Tip="Show your pet's outgoing ability blocks.", Codes="%n - Name of the attacked unit.\n%s - Name of the ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_RESIST", Label="Pet Spell Resists", Tip="Show your pet's outgoing spell resists.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_ABSORB", Label="Pet Ability/Spell Absorbs", Tip="Show your pet's absorbed damage from outgoing spells and abilities.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_IMMUNE", Label="Pet Ability/Spell Immunes", Tip="Show your pet's outgoing spell and ability damage the enemy is immune to.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_PET_SPELL_EVADE", Label="Pet Ability/Spell Evades", Tip="Show your pet's outgoing spell and ability evades.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
+ },
+ Notification = {
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_DEBUFF", Label="Debuffs", Tip="Show debuffs you are afflicted by.", Codes="%s - Name of the debuff."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_BUFF", Label="Buffs", Tip="Show buffs you receive.", Codes="%s - Name of the buff."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_BUFF_FADE", Label="Buff Fades", Tip="Show buffs and debuffs that have faded from you.", Codes="%s - Name of the buff/debuff."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER", Label="Enter Combat", Tip="Show when you have entered combat.", Codes="None."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE", Label="Leave Combat", Tip="Show when you have left combat.", Codes="None."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_POWER_GAIN", Label="Power Gains", Tip="Show when you gain extra mana, rage, or energy.", Codes="%a - Amount and type of power gained, such as 25 Energy.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_POWER_LOSS", Label="Power Losses", Tip="Show when you lose mana, rage, or energy from drains.", Codes="%a - Amount and type of power lost, such as 120 Mana.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_CP_GAIN", Label="Combo Point Gains", Tip="Show when you gain combo points.", Codes="%a - Amount of combo points you have."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_CP_FULL", Label="Combo Points Full", Tip="Show when you attain full combo points.", Codes="%a - Amount of combo points you have."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_HONOR_GAIN", Label="Honor Gains", Tip="Show when you gain honor.", Codes="%a - Amount of honor you gained."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_REP_GAIN", Label="Reputation Gains", Tip="Show when you gain reputation.", Codes="%a - Amount of reputation you gained.\n%s - Name of the faction."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_REP_LOSS", Label="Reputation Losses", Tip="Show when you lose reputation.", Codes="%a - Amount of reputation you lost.\n%s - Name of the faction."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_SKILL_GAIN", Label="Skill Gains", Tip="Show when you gain skill points.", Codes="%a - Amount of points you have in the skill.\n%s - Name of the skill."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_EXPERIENCE_GAIN", Label="Experience Gains", Tip="Show when you gain experience points.", Codes="%a - Amount of experience you gained."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_PC_KILLING_BLOW", Label="Player Killing Blows", Tip="Show when you get a killing blow against a hostile player.", Codes="%s - Name of the unit killed."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_NPC_KILLING_BLOW", Label="NPC Killing Blows", Tip="Show when you get a killing blow against an NPC.", Codes="%s - Name of the unit killed."},
+ },
+};
 
 local WIDTH = 600
 local ROWS_PER_PAGE = 10
@@ -20,13 +126,7 @@ local refresh = {}
 local selectedArea = "Incoming"
 local moversShown = false
 
-local function Profile() return MikSBT.CurrentProfile end
-
-local function Count(t)
- local n = 0
- for _ in pairs(t) do n = n + 1 end
- return n
-end
+local function Profile() return FBT.CurrentProfile end
 
 -- Sorted keys, so list rows keep their order between refreshes.
 local function SortedKeys(t)
@@ -138,7 +238,7 @@ local function MessageButton(name, parent, x, width, onClick)
 end
 
 -------------------------------------------------------------------------------------
--- Color picker. ColorPickerFrame is shared by every addon: MSBT remembers which
+-- Color picker. ColorPickerFrame is shared by every addon: FBT remembers which
 -- profile and color it opened for, so a late callback never writes elsewhere.
 -------------------------------------------------------------------------------------
 
@@ -149,38 +249,38 @@ local function ApplyPickedColor(owner, r, g, b)
  if owner.profile == Profile() then PaintSwatch(owner.swatch, owner.color) end
 end
 
-function MikSBTOpt.OnPickerColor()
+function Options.OnPickerColor()
  local owner = pickerOwner
  if not owner or owner.profile ~= Profile() then return end
  ApplyPickedColor(owner, ColorPickerFrame:GetColorRGB())
 end
 
-function MikSBTOpt.OnPickerCancel()
+function Options.OnPickerCancel()
  local owner = pickerOwner
  if not owner then return end
  pickerOwner = nil
  ApplyPickedColor(owner, owner.previous.r, owner.previous.g, owner.previous.b)
 end
 
--- Closes MSBT's picker. restore puts the original color back (profile load,
+-- Closes FBT's picker. restore puts the original color back (profile load,
 -- reset, delete); otherwise the chosen color stays (closing the window).
 -- Another addon's open picker is never touched.
-function MikSBTOpt.RetireColorPicker(restore)
+function Options.RetireColorPicker(restore)
  local owner = pickerOwner
  if not owner then return end
  pickerOwner = nil
- if ColorPickerFrame:IsShown() and ColorPickerFrame.func == MikSBTOpt.OnPickerColor then
+ if ColorPickerFrame:IsShown() and ColorPickerFrame.func == Options.OnPickerColor then
   HideUIPanel(ColorPickerFrame)
   if restore then ApplyPickedColor(owner, owner.previous.r, owner.previous.g, owner.previous.b) end
  end
 end
 
 local function PickColor(swatch, color)
- MikSBTOpt.RetireColorPicker(false)
+ Options.RetireColorPicker(false)
  pickerOwner = {profile = Profile(), color = color, swatch = swatch,
   previous = {r = color.r, g = color.g, b = color.b}}
- ColorPickerFrame.func = MikSBTOpt.OnPickerColor
- ColorPickerFrame.cancelFunc = MikSBTOpt.OnPickerCancel
+ ColorPickerFrame.func = Options.OnPickerColor
+ ColorPickerFrame.cancelFunc = Options.OnPickerCancel
  ColorPickerFrame.opacityFunc = nil
  ColorPickerFrame.hasOpacity = nil
  ColorPickerFrame.previousValues = pickerOwner.previous
@@ -193,6 +293,7 @@ end
 -- inherit from the next table in the chain (event -> area -> master).
 -------------------------------------------------------------------------------------
 
+local KINDS = {"Normal", "Crit"}
 local OUTLINE_LABELS = {"None", "Thin", "Thick"}
 local OUTLINE_LABELS_INHERIT = {"Inherit", "None", "Thin", "Thick"}
 
@@ -204,45 +305,46 @@ local function Resolve(chain, kind, field)
 end
 
 local function CreateFontEditor()
- local editor = UI.Window("MSBT_FontEditor", "Fonts", 420, 330)
+ local editor = UI.Window("FBT_FontEditor", "Fonts", 420, 330)
  editor:SetPoint("TOP", UIParent, "CENTER", 260, 190)
  editor.sections = {}
 
  local function Section(kind, y)
   local s = {kind = kind}
   s.heading = UI.Heading(editor, kind == "Crit" and "Critical hits" or "Normal hits", 28, y)
-  s.font = Cycle("MSBT_Font" .. kind .. "Face", editor, 28, y - 22, 220, function(step)
+  s.font = Cycle("FBT_Font" .. kind .. "Face", editor, 28, y - 22, 220, function(step)
    local fs = editor.target.own[kind]
    local low = editor.target.inherit and 0 or 1
    local value = (fs.FontIndex or 0) + step
-   if value > table.getn(MikSBT.AVAILABLE_FONTS) then value = low elseif value < low then value = table.getn(MikSBT.AVAILABLE_FONTS) end
+   if value > table.getn(FBT.AVAILABLE_FONTS) then value = low elseif value < low then value = table.getn(FBT.AVAILABLE_FONTS) end
    fs.FontIndex = value
    editor.Changed()
   end)
-  s.outlineButtons, s.SelectOutline, s.outlineTrack = UI.Segmented("MSBT_Font" .. kind .. "Outline", editor,
+  s.outlineButtons, s.SelectOutline, s.outlineTrack = UI.Segmented("FBT_Font" .. kind .. "Outline", editor,
    OUTLINE_LABELS_INHERIT, 264, y - 22, 128, function(index)
     local fs = editor.target.own[kind]
     fs.OutlineIndex = editor.target.inherit and index - 1 or index
     editor.Changed()
    end, {height = 22})
-  s.outlineButtons3, s.SelectOutline3, s.outlineTrack3 = UI.Segmented("MSBT_Font" .. kind .. "Outline3", editor,
+  s.outlineButtons3, s.SelectOutline3, s.outlineTrack3 = UI.Segmented("FBT_Font" .. kind .. "Outline3", editor,
    OUTLINE_LABELS, 264, y - 22, 128, function(index)
     editor.target.own[kind].OutlineIndex = index
     editor.Changed()
    end, {height = 22})
-  s.inherit = UI.Switch("MSBT_Font" .. kind .. "InheritSize", editor, "Inherit size",
+  s.inherit = UI.Switch("FBT_Font" .. kind .. "InheritSize", editor, "Inherit size",
    "Use the size of the area or master font.", 28, y - 56, function(value)
     local fs = editor.target.own[kind]
     fs.FontSize = value and 0 or (Resolve(editor.target.chain, kind, "FontSize") or 18)
     editor.Changed()
    end, 110)
-  s.size = UI.Slider("MSBT_Font" .. kind .. "Size", editor, "Size", 160, y - 54, 232, 12, 64, 2, function(value)
+  s.size = UI.Slider("FBT_Font" .. kind .. "Size", editor, "Size", 160, y - 54, 232, 12, 64, 2, function(value)
    editor.target.own[kind].FontSize = value
    editor.Changed(true)
   end)
   s.preview = editor:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   s.preview:SetPoint("TOPLEFT", editor, "TOPLEFT", 28, y - 92)
   s.preview:SetText(kind == "Crit" and "12345 Crit!" or "1234 Normal")
+  s.widgets = {s.heading, s.font, s.outlineTrack, s.outlineTrack3, s.inherit, s.inherit.label, s.size, s.size.label, s.size.valueText, s.preview}
   editor.sections[kind] = s
   return s
  end
@@ -251,19 +353,18 @@ local function CreateFontEditor()
  editor.note = UI.Label(editor, "The game damage font changes after you log in again.", 28, -90, "GameFontDisableSmall")
 
  local function ShowSection(s, shown)
-  local widgets = {s.heading, s.font, s.outlineTrack, s.outlineTrack3, s.inherit, s.inherit.label, s.size, s.size.label, s.size.valueText, s.preview}
-  for _, w in ipairs(widgets) do if shown then w:Show() else w:Hide() end end
+  for _, w in ipairs(s.widgets) do if shown then w:Show() else w:Hide() end end
  end
 
  function editor.Refresh()
   local target = editor.target
-  for _, kind in ipairs({"Normal", "Crit"}) do
+  for _, kind in ipairs(KINDS) do
    local s, fs = editor.sections[kind], target.own[kind]
    ShowSection(s, fs ~= nil)
    if fs then
     local index = fs.FontIndex or 0
-    local face = MikSBT.AVAILABLE_FONTS[index]
-    local resolved = MikSBT.AVAILABLE_FONTS[Resolve(target.chain, kind, "FontIndex") or 1] or MikSBT.AVAILABLE_FONTS[1]
+    local face = FBT.AVAILABLE_FONTS[index]
+    local resolved = FBT.AVAILABLE_FONTS[Resolve(target.chain, kind, "FontIndex") or 1] or FBT.AVAILABLE_FONTS[1]
     s.font.text:SetText(face and face.Name or ("Inherit: " .. resolved.Name))
     if target.blizzard then
      s.outlineTrack:Hide(); s.outlineTrack3:Hide(); s.inherit:Hide(); s.inherit.label:Hide()
@@ -280,7 +381,7 @@ local function CreateFontEditor()
      UI.SetSlider(s.size, size)
      UI.SetEnabled(s.size, not target.inherit or (fs.FontSize or 0) ~= 0)
     end
-    local outline = MikSBT.AVAILABLE_OUTLINES[Resolve(target.chain, kind, "OutlineIndex") or 1] or MikSBT.AVAILABLE_OUTLINES[1]
+    local outline = FBT.AVAILABLE_OUTLINES[Resolve(target.chain, kind, "OutlineIndex") or 1] or FBT.AVAILABLE_OUTLINES[1]
     s.preview:SetFont(resolved.Path, target.blizzard and 18 or size, outline.Style)
    end
   end
@@ -290,7 +391,7 @@ local function CreateFontEditor()
 
  -- sizeOnly: a slider drag; the slider already shows the value.
  function editor.Changed(sizeOnly)
-  if editor.target.blizzard then MikSBT.ApplyGameDamageFont() end
+  if editor.target.blizzard then FBT.ApplyGameDamageFont() end
   editor.Refresh()
  end
  return editor
@@ -305,7 +406,7 @@ local function EditFonts(target)
  fontEditor.Refresh()
  fontEditor:Show()
 end
-MikSBTOpt.EditFonts = EditFonts
+Options.EditFonts = EditFonts
 
 local function MasterChain()
  return {Profile().MasterFontSettings}
@@ -315,7 +416,7 @@ local function AreaChain(area)
  return {Profile().DisplaySettings[area].FontSettings, Profile().MasterFontSettings}
 end
 
-function MikSBTOpt.EditEventFonts(area, eventType, label)
+function Options.EditEventFonts(area, eventType, label)
  local settings = Profile().EventSettings[eventType].FontSettings
  local chain = AreaChain(area)
  table.insert(chain, 1, settings)
@@ -329,12 +430,12 @@ end
 local function BuildGeneral(page)
  local switches = {}
  UI.Heading(page, "Display", 28, -98)
- local enabled = UI.Switch("MSBT_Enabled", page, "Enable MSBT", "Show scrolling combat text.", 28, -122, function(value)
-  MikSBT.SetOptionUserDisabled(not value)
+ local enabled = UI.Switch("FBT_Enabled", page, "Enable", "Show scrolling combat text. While off, the game shows its own damage numbers.", 28, -122, function(value)
+  FBT.SetOptionUserDisabled(not value)
   refresh[1]()
  end)
  local function ProfileSwitch(key, text, tip, x, y, after)
-  switches[key] = UI.Switch("MSBT_" .. key, page, text, tip, x, y, function(value)
+  switches[key] = UI.Switch("FBT_" .. key, page, text, tip, x, y, function(value)
    Profile()[key] = value
    if after then after(value) end
   end)
@@ -343,10 +444,10 @@ local function BuildGeneral(page)
  ProfileSwitch("UseStickyCrits", "Sticky criticals", "Critical hits pop in the middle of the area instead of scrolling.", 28, -194)
  ProfileSwitch("ShowAllManaGains", "All mana gains", "Show every mana increase, including regeneration and drinking.", 28, -230, function(value)
   -- Mana is observed only while something reads it.
-  MikCEH.UpdateUnitEvents()
+  Combat.UpdateUnitEvents()
  end)
- local gameDamage = UI.Switch("MSBT_ShowGameDamage", page, "Game damage text", "Keep the game's own damage numbers above enemies.", 28, -266, function(value)
-  MikSBT.SetOptionShowGameDamage(value)
+ local gameDamage = UI.Switch("FBT_ShowGameDamage", page, "Game damage text", "Keep the game's own damage numbers above enemies.", 28, -266, function(value)
+  FBT.SetOptionShowGameDamage(value)
  end)
 
  UI.Heading(page, "Sounds", 264, -98)
@@ -354,21 +455,21 @@ local function BuildGeneral(page)
  ProfileSwitch("LowManaSound", "Low mana", "Play a sound when a low mana trigger fires.", 264, -158)
  ProfileSwitch("ResistSound", "Frost resists", "Play a sound when your Cone of Cold or Frost Nova is resisted.", 264, -194)
 
- local speed = UI.Slider("MSBT_AnimationStep", page, "Scroll speed", 28, -310, 210, 1, 5, 0.5, function(value)
+ local speed = UI.Slider("FBT_AnimationStep", page, "Scroll speed", 28, -310, 210, 1, 5, 0.5, function(value)
   Profile().AnimationStep = value
  end)
 
- UI.Button("MSBT_MasterFonts", page, "Fonts", 300, -306, 172, function()
+ UI.Button("FBT_MasterFonts", page, "Fonts", 300, -306, 172, function()
   local fonts = Profile().MasterFontSettings
   EditFonts({title = "Master fonts", own = {Normal = fonts.Normal, Crit = fonts.Crit}, chain = MasterChain(), inherit = false})
  end)
- UI.Button("MSBT_GameDamageFont", page, "Game damage font", 300, -336, 172, function()
+ UI.Button("FBT_GameDamageFont", page, "Game damage font", 300, -336, 172, function()
   local fonts = Profile().BlizzardFontSettings
   EditFonts({title = "Game damage font", own = {Normal = fonts.Normal}, chain = {fonts}, inherit = false, blizzard = true})
  end)
 
  return function()
-  local enabledNow = not MikSBT_Save.UserDisabled
+  local enabledNow = not FostercareBattleTextDB.UserDisabled
   UI.Sync(enabled, enabledNow)
   for key, widget in pairs(switches) do UI.Sync(widget, Profile()[key], enabledNow) end
   UI.Sync(gameDamage, Profile().ShowGameDamage, enabledNow)
@@ -392,7 +493,7 @@ local function PlaceMover(area)
 end
 
 local function CreateMover(area)
- local mover = CreateFrame("Frame", "MSBT_Mover" .. area, UIParent)
+ local mover = CreateFrame("Frame", "FBT_Mover" .. area, UIParent)
  mover:SetWidth(80)
  mover:SetFrameStrata("DIALOG")
  mover:EnableMouse(true); mover:SetMovable(true); mover:SetClampedToScreen(true)
@@ -408,7 +509,7 @@ local function CreateMover(area)
   local offsets = Profile().DisplaySettings[area].FrameOffsets
   offsets.x = math.floor(mover:GetCenter() - centerX)
   offsets.y = math.ceil(mover:GetBottom() - centerY)
-  MikSBT.RepositionAnimationFrames()
+  FBT.RepositionAnimationFrames()
   PlaceMover(area)
  end)
  mover:Hide()
@@ -424,55 +525,55 @@ local function ShowMovers(shown)
 end
 
 local function BuildAreas(page)
- local areaButtons, SelectArea = UI.Segmented("MSBT_Area", page, {"Incoming", "Outgoing", "Notices"}, 28, -98, 300, function(index)
+ local areaButtons, SelectArea = UI.Segmented("FBT_Area", page, {"Incoming", "Outgoing", "Notices"}, 28, -98, 300, function(index)
   selectedArea = AREAS[index]
   refresh[2]()
  end, {height = 26})
  local function Settings() return Profile().DisplaySettings[selectedArea] end
- local show = UI.Switch("MSBT_AreaShow", page, "Show this area", "Show the events of this area.", 352, -104, function(value)
+ local show = UI.Switch("FBT_AreaShow", page, "Show this area", "Show the events of this area.", 352, -104, function(value)
   Settings().Show = value
  end)
 
  UI.Heading(page, "Movement", 28, -144)
- local _, SelectStyle = UI.Segmented("MSBT_AreaStyle", page, {"Straight", "Curve left", "Curve right"}, 28, -164, 300, function(index)
+ local _, SelectStyle = UI.Segmented("FBT_AreaStyle", page, {"Straight", "Curve left", "Curve right"}, 28, -164, 300, function(index)
   Settings().AnimationStyle = index
   refresh[2]()
  end, {height = 24})
- local _, SelectDirection = UI.Segmented("MSBT_AreaDirection", page, {"Up", "Down"}, 352, -164, 120, function(index)
+ local _, SelectDirection = UI.Segmented("FBT_AreaDirection", page, {"Up", "Down"}, 352, -164, 120, function(index)
   Settings().ScrollDirection = index
   refresh[2]()
  end, {height = 24})
  UI.Heading(page, "Text", 28, -204)
- local _, SelectAlign = UI.Segmented("MSBT_AreaAlign", page, {"Left", "Center", "Right"}, 28, -224, 300, function(index)
+ local _, SelectAlign = UI.Segmented("FBT_AreaAlign", page, {"Left", "Center", "Right"}, 28, -224, 300, function(index)
   Settings().FontSettings.TextAlignIndex = index
   refresh[2]()
  end, {height = 24})
- local height = UI.Slider("MSBT_AreaHeight", page, "Scroll height", 28, -264, 300, 100, 600, 10, function(value)
+ local height = UI.Slider("FBT_AreaHeight", page, "Scroll height", 28, -264, 300, 100, 600, 10, function(value)
   Settings().ScrollHeight = value
   if moversShown then PlaceMover(selectedArea) end
  end)
 
- local unlock = UI.Button("MSBT_AreaUnlock", page, "Move areas", 352, -264, 120, function()
+ local unlock = UI.Button("FBT_AreaUnlock", page, "Move areas", 352, -264, 120, function()
   ShowMovers(not moversShown)
   refresh[2]()
  end)
- UI.Button("MSBT_AreaPreview", page, "Preview", 352, -294, 120, function()
-  MikSBT.DisplayMessage("Incoming", MikSBT.DISPLAYTYPE_INCOMING, false, 255, 80, 80)
-  MikSBT.DisplayMessage("Outgoing", MikSBT.DISPLAYTYPE_OUTGOING, false, 255, 255, 255)
-  MikSBT.DisplayMessage("Notices", MikSBT.DISPLAYTYPE_NOTIFICATION, false, 255, 220, 120)
+ UI.Button("FBT_AreaPreview", page, "Preview", 352, -294, 120, function()
+  FBT.DisplayMessage("Incoming", FBT.DISPLAYTYPE_INCOMING, false, 255, 80, 80)
+  FBT.DisplayMessage("Outgoing", FBT.DISPLAYTYPE_OUTGOING, false, 255, 255, 255)
+  FBT.DisplayMessage("Notices", FBT.DISPLAYTYPE_NOTIFICATION, false, 255, 220, 120)
  end)
- UI.Button("MSBT_AreaFonts", page, "Area fonts", 352, -324, 120, function()
+ UI.Button("FBT_AreaFonts", page, "Area fonts", 352, -324, 120, function()
   local fonts = Profile().DisplaySettings[selectedArea].FontSettings
   EditFonts({title = AREA_LABELS[selectedArea] .. " fonts", own = {Normal = fonts.Normal, Crit = fonts.Crit},
    chain = AreaChain(selectedArea), inherit = true})
  end)
- UI.Button("MSBT_AreaReset", page, "Reset positions", 28, -324, 140, function()
+ UI.Button("FBT_AreaReset", page, "Reset positions", 28, -324, 140, function()
   for _, area in ipairs(AREAS) do
-   local default = MikSBT.DEFAULT_CONFIG.DisplaySettings[area].FrameOffsets
+   local default = FBT.DEFAULT_CONFIG.DisplaySettings[area].FrameOffsets
    Profile().DisplaySettings[area].FrameOffsets.x = default.x
    Profile().DisplaySettings[area].FrameOffsets.y = default.y
   end
-  MikSBT.RepositionAnimationFrames()
+  FBT.RepositionAnimationFrames()
   if moversShown then ShowMovers(true) end
  end)
  UI.Label(page, "Move areas shows a handle per area; drag it to place the area.", 28, -362, "GameFontDisableSmall")
@@ -495,7 +596,7 @@ end
 
 local function BuildEvents(page, area, tab)
  local rows, pager = {}, nil
- local prefix = "MSBT_" .. area .. "Row"
+ local prefix = "FBT_" .. area .. "Row"
  UI.Heading(page, "Show / Color / Message (click to edit) / Font", 28, -98)
  for i = 1, ROWS_PER_PAGE do
   local row = UI.Row(prefix .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
@@ -527,14 +628,14 @@ local function BuildEvents(page, area, tab)
    UI.Tooltip(row.icon, "Show a large icon beside this message.")
   end
   row.font = UI.Button(prefix .. i .. "Font", row, "Font", 494, -2, 44, function()
-   MikSBTOpt.EditEventFonts(area, row.eventType, row.show.label:GetText())
+   Options.EditEventFonts(area, row.eventType, row.show.label:GetText())
   end, {ghost = true})
   rows[i] = row
  end
  pager = Pager(prefix .. "Pager", page, function(step) pager.page = pager.page + step; refresh[tab]() end)
 
  return function()
-  local list = MikSBTOpt.EVENTS[area]
+  local list = EVENTS[area]
   local offset = pager:Set(table.getn(list))
   for i, row in ipairs(rows) do
    local entry = list[offset + i]
@@ -549,7 +650,7 @@ local function BuildEvents(page, area, tab)
     row.message:SetText(settings.Message or "")
     if row.sticky then UI.Select(row.sticky, settings.IsSticky and true or false) end
     if row.icon then
-     if MikSBT.BIG_ICONS[entry.Type] then
+     if FBT.BIG_ICONS[entry.Type] then
       row.icon:Show()
       UI.Select(row.icon, settings.BigIcon and true or false)
      else
@@ -572,28 +673,28 @@ local CLASSES = {"DRUID", "HUNTER", "MAGE", "PALADIN", "PRIEST", "ROGUE", "SHAMA
 local CLASS_LABELS = {DRUID = "Druid", HUNTER = "Hunter", MAGE = "Mage", PALADIN = "Paladin", PRIEST = "Priest",
  ROGUE = "Rogue", SHAMAN = "Shaman", WARLOCK = "Warlock", WARRIOR = "Warrior"}
 local function CopyTable(t)
- return type(t) == "table" and MikSBT.CopyTable(t) or t
+ return type(t) == "table" and FBT.CopyTable(t) or t
 end
 
 local function CreateTriggerEditor()
- local editor = UI.Window("MSBT_TriggerEditor", "Trigger", 460, 360)
+ local editor = UI.Window("FBT_TriggerEditor", "Trigger", 460, 360)
  editor:SetPoint("TOP", UIParent, "CENTER", 280, 190)
  local work
 
  UI.Heading(editor, "Type", 28, -56)
- editor.type = Cycle("MSBT_TriggerType", editor, 28, -74, 220, function(step)
-  local types = MikSBT.AVAILABLE_TRIGGER_TYPES
+ editor.type = Cycle("FBT_TriggerType", editor, 28, -74, 220, function(step)
+  local types = FBT.AVAILABLE_TRIGGER_TYPES
   local count, index = table.getn(types), 1
   for i, info in ipairs(types) do if info.Type == work.TriggerType then index = i end end
   work.TriggerType = types[(index - 1 + step + count) % count + 1].Type
   editor.Refresh()
  end)
  UI.Heading(editor, "Icon", 264, -56)
- editor.icon = TextBox("MSBT_TriggerIcon", editor, 264, -75, 168)
+ editor.icon = TextBox("FBT_TriggerIcon", editor, 264, -75, 168)
  UI.Tooltip(editor.icon, "Path of an icon to show, such as Interface\\Icons\\Ability_Warrior_Charge. Leave empty for none.")
 
  UI.Heading(editor, "Classes", 28, -108)
- editor.allClasses = UI.Switch("MSBT_TriggerAllClasses", editor, "All classes", nil, 28, -126, function(value)
+ editor.allClasses = UI.Switch("FBT_TriggerAllClasses", editor, "All classes", nil, 28, -126, function(value)
   if value then work.Classes = nil else work.Classes = {} end
   editor.Refresh()
  end, 110)
@@ -601,32 +702,35 @@ local function CreateTriggerEditor()
  for i, class in ipairs(CLASSES) do
   local key = class
   local col, line = (i - 1) % 3, math.floor((i - 1) / 3)
-  editor.classes[key] = UI.Switch("MSBT_TriggerClass" .. key, editor, CLASS_LABELS[key], nil, 28 + col * 136, -154 - line * 24, function(value)
+  editor.classes[key] = UI.Switch("FBT_TriggerClass" .. key, editor, CLASS_LABELS[key], nil, 28 + col * 136, -154 - line * 24, function(value)
    work.Classes[key] = value or nil
   end, 100)
  end
 
  local y = -236
  editor.thresholdHeading = UI.Heading(editor, "Threshold", 28, y)
- editor.threshold = UI.Slider("MSBT_TriggerThreshold", editor, "Below this percent", 28, y - 20, 404, 1, 100, 1, function(value)
+ editor.threshold = UI.Slider("FBT_TriggerThreshold", editor, "Below this percent", 28, y - 20, 404, 1, 100, 1, function(value)
   work.Threshold = value
  end)
  editor.auraHeading = UI.Heading(editor, "Aura name", 28, y)
- editor.aura = TextBox("MSBT_TriggerAura", editor, 28, y - 18, 404)
+ editor.aura = TextBox("FBT_TriggerAura", editor, 28, y - 18, 404)
  UI.Tooltip(editor.aura, "The exact name of the buff, for example Clearcasting.")
  editor.stanceHeading = UI.Heading(editor, "Stance or form", 28, y - 48)
- editor.stance = Cycle("MSBT_TriggerStance", editor, 28, y - 66, 404, function(step)
-  local count = table.getn(MikSBT.AVAILABLE_STANCES)
+ editor.stance = Cycle("FBT_TriggerStance", editor, 28, y - 66, 404, function(step)
+  local count = table.getn(FBT.AVAILABLE_STANCES)
   work.Stance = ((work.Stance or count) - 1 + step + count) % count + 1
   if work.Stance == count then work.Stance = nil end
   editor.Refresh()
  end)
 
- local save = UI.Button("MSBT_TriggerSave", editor, "Save", 0, 0, 120, function() editor.Save() end)
+ local save = UI.Button("FBT_TriggerSave", editor, "Save", 0, 0, 120, function() editor.Save() end)
  save:ClearAllPoints(); save:SetPoint("BOTTOMLEFT", editor, "BOTTOMLEFT", 28, 18)
- local cancel = UI.Button("MSBT_TriggerCancel", editor, "Cancel", 0, 0, 120, function() editor:Hide() end)
+ local cancel = UI.Button("FBT_TriggerCancel", editor, "Cancel", 0, 0, 120, function() editor:Hide() end)
  cancel:ClearAllPoints(); cancel:SetPoint("BOTTOMLEFT", editor, "BOTTOMLEFT", 156, 18)
 
+ local thresholdWidgets = {editor.thresholdHeading, editor.threshold}
+ local auraWidgets = {editor.auraHeading, editor.aura}
+ local stanceWidgets = {editor.stanceHeading, editor.stance}
  local function Shown(widget, shown)
   if shown then widget:Show() else widget:Hide() end
   if widget.label then Shown(widget.label, shown) end
@@ -635,20 +739,20 @@ local function CreateTriggerEditor()
 
  function editor.Refresh()
   local triggerType = work.TriggerType
-  local isThreshold = triggerType <= MikCEH.TRIGGERTYPE_FRIENDLY_HEALTH
-  local isAura = triggerType == MikCEH.TRIGGERTYPE_AURA_GAIN
-  for _, info in ipairs(MikSBT.AVAILABLE_TRIGGER_TYPES) do
+  local isThreshold = triggerType <= Combat.TRIGGERTYPE_FRIENDLY_HEALTH
+  local isAura = triggerType == Combat.TRIGGERTYPE_AURA_GAIN
+  for _, info in ipairs(FBT.AVAILABLE_TRIGGER_TYPES) do
    if info.Type == triggerType then editor.type.text:SetText(info.Name) end
   end
   UI.Sync(editor.allClasses, work.Classes == nil)
   for key, widget in pairs(editor.classes) do
    UI.Sync(widget, work.Classes and work.Classes[key] or false, work.Classes ~= nil)
   end
-  for _, w in ipairs({editor.thresholdHeading, editor.threshold}) do Shown(w, isThreshold) end
-  for _, w in ipairs({editor.auraHeading, editor.aura}) do Shown(w, isAura) end
-  for _, w in ipairs({editor.stanceHeading, editor.stance}) do Shown(w, not isThreshold) end
+  for _, w in ipairs(thresholdWidgets) do Shown(w, isThreshold) end
+  for _, w in ipairs(auraWidgets) do Shown(w, isAura) end
+  for _, w in ipairs(stanceWidgets) do Shown(w, not isThreshold) end
   if isThreshold then UI.SetSlider(editor.threshold, work.Threshold or 40) end
-  local stances = MikSBT.AVAILABLE_STANCES
+  local stances = FBT.AVAILABLE_STANCES
   editor.stance.text:SetText(stances[work.Stance or table.getn(stances)].Name)
   editor:SetHeight(isThreshold and 330 or 360)
  end
@@ -669,28 +773,28 @@ local function CreateTriggerEditor()
   if not trigger then editor:Hide(); return end
   local triggerType = work.TriggerType
   local settings = {TriggerType = triggerType, Classes = work.Classes}
-  if triggerType <= MikCEH.TRIGGERTYPE_FRIENDLY_HEALTH then
+  if triggerType <= Combat.TRIGGERTYPE_FRIENDLY_HEALTH then
    settings.Threshold = work.Threshold or 40
   else
    settings.Stance = work.Stance
    if settings.Stance and not GetShapeshiftFormInfo(settings.Stance) then
-    MikSBT.Print("This character has no such stance, so the trigger will not fire.", 1, 1, 0)
+    FBT.Print("This character has no such stance, so the trigger will not fire.", 1, 1, 0)
    end
-   if triggerType == MikCEH.TRIGGERTYPE_AURA_GAIN then
+   if triggerType == Combat.TRIGGERTYPE_AURA_GAIN then
     settings.AuraName = editor.aura:GetText()
    end
   end
   trigger.TriggerSettings = settings
   local icon = editor.icon:GetText()
   trigger.Texture = icon ~= "" and icon or nil
-  MikSBT.RegisterTriggers()
+  FBT.RegisterTriggers()
   editor:Hide()
   if refresh[6] then refresh[6]() end
  end
  return editor
 end
 
-function MikSBTOpt.EditTrigger(triggerKey)
+function Options.EditTrigger(triggerKey)
  if not triggerEditor then triggerEditor = CreateTriggerEditor() end
  triggerEditor.Open(triggerKey)
 end
@@ -703,46 +807,46 @@ local function BuildTriggers(page)
  local rows, pager, keys = {}, nil, {}
  UI.Heading(page, "On / Message (click to edit) / Color", 28, -98)
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row("MSBT_TriggerRow" .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
+  local row = UI.Row("FBT_TriggerRow" .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
   local function Trigger() return Profile().Triggers[row.key] end
-  row.show = UI.Switch("MSBT_TriggerRow" .. i .. "Show", row, "", "Turn this trigger on or off.", 4, -5, function(value)
+  row.show = UI.Switch("FBT_TriggerRow" .. i .. "Show", row, "", "Turn this trigger on or off.", 4, -5, function(value)
    Trigger().EventSettings.Show = value
-   MikSBT.RegisterTriggers()
+   FBT.RegisterTriggers()
   end, 20)
-  row.message = MessageButton("MSBT_TriggerRow" .. i .. "Message", row, 40, 230, function()
+  row.message = MessageButton("FBT_TriggerRow" .. i .. "Message", row, 40, 230, function()
    EditInline(row.message, Trigger().EventSettings.Message, function(text)
     Trigger().EventSettings.Message = text
     refresh[6]()
    end)
   end)
   UI.Tooltip(row.message, "%1 shows the health or mana amount.")
-  row.swatch = Swatch("MSBT_TriggerRow" .. i .. "Color", row, function()
+  row.swatch = Swatch("FBT_TriggerRow" .. i .. "Color", row, function()
    PickColor(row.swatch, Trigger().EventSettings.FontSettings.Color)
   end)
   row.swatch:SetPoint("LEFT", row, "LEFT", 278, 0)
-  row.sticky = UI.Button("MSBT_TriggerRow" .. i .. "Sticky", row, "Sticky", 300, -2, 52, function()
+  row.sticky = UI.Button("FBT_TriggerRow" .. i .. "Sticky", row, "Sticky", 300, -2, 52, function()
    Trigger().EventSettings.IsSticky = not Trigger().EventSettings.IsSticky
    refresh[6]()
   end, {ghost = true})
-  UI.Button("MSBT_TriggerRow" .. i .. "Font", row, "Font", 356, -2, 44, function()
+  UI.Button("FBT_TriggerRow" .. i .. "Font", row, "Font", 356, -2, 44, function()
    local settings = Trigger().EventSettings.FontSettings
    local chain = AreaChain("Notification")
    table.insert(chain, 1, settings)
    EditFonts({title = Trigger().EventSettings.Message, own = {Normal = settings.Normal}, chain = chain, inherit = true})
   end, {ghost = true})
-  UI.Button("MSBT_TriggerRow" .. i .. "Edit", row, "Edit", 404, -2, 50, function()
-   MikSBTOpt.EditTrigger(row.key)
+  UI.Button("FBT_TriggerRow" .. i .. "Edit", row, "Edit", 404, -2, 50, function()
+   Options.EditTrigger(row.key)
   end, {ghost = true})
-  local delete = UI.Button("MSBT_TriggerRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
+  local delete = UI.Button("FBT_TriggerRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
    Profile().Triggers[row.key] = nil
-   MikSBT.RegisterTriggers()
+   FBT.RegisterTriggers()
    refresh[6]()
   end, {ghost = true})
   UI.Tooltip(delete, "Delete this trigger.")
   rows[i] = row
  end
- pager = Pager("MSBT_TriggerPager", page, function(step) pager.page = pager.page + step; refresh[6]() end)
- local add = UI.Button("MSBT_TriggerAdd", page, "Add trigger", 0, 0, 140, function()
+ pager = Pager("FBT_TriggerPager", page, function(step) pager.page = pager.page + step; refresh[6]() end)
+ local add = UI.Button("FBT_TriggerAdd", page, "Add trigger", 0, 0, 140, function()
   local n = 1
   while Profile().Triggers["MSBT_TRIGGER_CUSTOM" .. n] do n = n + 1 end
   Profile().Triggers["MSBT_TRIGGER_CUSTOM" .. n] = {
@@ -750,9 +854,9 @@ local function BuildTriggers(page)
     FontSettings = {Color = {r = 1, g = 0.502, b = 0.502}, Normal = {FontIndex = 0, OutlineIndex = 0, FontSize = 26}}},
    TriggerSettings = {TriggerType = 1, Threshold = 40},
   }
-  MikSBT.RegisterTriggers()
+  FBT.RegisterTriggers()
   refresh[6]()
-  MikSBTOpt.EditTrigger("MSBT_TRIGGER_CUSTOM" .. n)
+  Options.EditTrigger("MSBT_TRIGGER_CUSTOM" .. n)
  end)
  add:ClearAllPoints(); add:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 28, 18)
 
@@ -784,26 +888,26 @@ local function BuildFilters(page)
  local rows, pager = {}, nil
  UI.Heading(page, "Hide messages that contain", 28, -98)
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row("MSBT_FilterRow" .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
+  local row = UI.Row("FBT_FilterRow" .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
   local function Filter() return Profile().Suppressions[row.key] end
-  row.show = UI.Switch("MSBT_FilterRow" .. i .. "On", row, "", "Turn this filter on or off.", 4, -5, function(value)
+  row.show = UI.Switch("FBT_FilterRow" .. i .. "On", row, "", "Turn this filter on or off.", 4, -5, function(value)
    Filter().Enabled = value
   end, 20)
-  row.pattern = MessageButton("MSBT_FilterRow" .. i .. "Pattern", row, 40, 460, function()
+  row.pattern = MessageButton("FBT_FilterRow" .. i .. "Pattern", row, 40, 460, function()
    EditInline(row.pattern, Filter().SearchPattern, function(text)
     Filter().SearchPattern = text
     refresh[7]()
    end)
   end)
   UI.Tooltip(row.pattern, "Hides every message whose text or spell name contains this text.")
-  UI.Button("MSBT_FilterRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
+  UI.Button("FBT_FilterRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
    Profile().Suppressions[row.key] = nil
    refresh[7]()
   end, {ghost = true})
   rows[i] = row
  end
- pager = Pager("MSBT_FilterPager", page, function(step) pager.page = pager.page + step; refresh[7]() end)
- local add = UI.Button("MSBT_FilterAdd", page, "Add filter", 0, 0, 140, function()
+ pager = Pager("FBT_FilterPager", page, function(step) pager.page = pager.page + step; refresh[7]() end)
+ local add = UI.Button("FBT_FilterAdd", page, "Add filter", 0, 0, 140, function()
   local n = 1
   while Profile().Suppressions["MSBT_SUPPRESSION_CUSTOM" .. n] do n = n + 1 end
   Profile().Suppressions["MSBT_SUPPRESSION_CUSTOM" .. n] = {Enabled = true, SearchPattern = "New filter"}
@@ -839,9 +943,9 @@ local function AfterProfileChange()
  if moversShown then ShowMovers(true) end
 end
 
-function MikSBTOpt.LoadProfile(name)
- MikSBTOpt.RetireColorPicker(true)
- MikSBT.SelectProfile(name)
+function Options.LoadProfile(name)
+ Options.RetireColorPicker(true)
+ FBT.SelectProfile(name)
  AfterProfileChange()
 end
 
@@ -849,54 +953,54 @@ local function BuildProfiles(page)
  local rows, pager = {}, nil
  UI.Heading(page, "Profiles (shared by your characters)", 28, -98)
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row("MSBT_ProfileRow" .. i, page, 28, -118 - (i - 1) * 28, 300)
-  row.radio = UI.Radio("MSBT_ProfileRow" .. i .. "Use", row)
+  local row = UI.Row("FBT_ProfileRow" .. i, page, 28, -118 - (i - 1) * 28, 300)
+  row.radio = UI.Radio("FBT_ProfileRow" .. i .. "Use", row)
   row.radio:SetPoint("LEFT", row, "LEFT", 4, 0)
   row.radio:SetScript("OnClick", function()
-   MikSBTOpt.LoadProfile(row.name)
+   Options.LoadProfile(row.name)
    refresh[8]()
   end)
   row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   row.label:SetPoint("LEFT", row.radio, "RIGHT", 8, 0)
   UI.Color(row.label, "text")
-  row.delete = UI.Button("MSBT_ProfileRow" .. i .. "Delete", row, "Delete", 236, -2, 60, function()
-   MikSBTOpt.RetireColorPicker(true)
-   MikSBT.DeleteProfile(row.name)
+  row.delete = UI.Button("FBT_ProfileRow" .. i .. "Delete", row, "Delete", 236, -2, 60, function()
+   Options.RetireColorPicker(true)
+   FBT.DeleteProfile(row.name)
    AfterProfileChange()
    refresh[8]()
   end, {ghost = true})
   rows[i] = row
  end
- pager = Pager("MSBT_ProfilePager", page, function(step) pager.page = pager.page + step; refresh[8]() end)
+ pager = Pager("FBT_ProfilePager", page, function(step) pager.page = pager.page + step; refresh[8]() end)
 
  UI.Heading(page, "New profile", 352, -98)
- local name = TextBox("MSBT_ProfileName", page, 352, -118, 172)
- UI.Button("MSBT_ProfileCreate", page, "Create", 352, -146, 172, function()
+ local name = TextBox("FBT_ProfileName", page, 352, -118, 172)
+ UI.Button("FBT_ProfileCreate", page, "Create", 352, -146, 172, function()
   local text = name:GetText()
-  if text ~= "" and not MikSBT.ProfileExists(text) then
-   MikSBT.CreateProfile(text)
+  if text ~= "" and not FBT.ProfileExists(text) then
+   FBT.CreateProfile(text)
    name:SetText("")
    refresh[8]()
   end
  end)
  UI.Label(page, "New profiles start from the defaults.", 352, -174, "GameFontDisableSmall")
- UI.Button("MSBT_ProfileReset", page, "Reset this profile", 352, -210, 172, function()
-  MikSBTOpt.RetireColorPicker(true)
-  MikSBT.ResetProfile(MikSBT_Save.CurrentProfile, true)
+ UI.Button("FBT_ProfileReset", page, "Reset this profile", 352, -210, 172, function()
+  Options.RetireColorPicker(true)
+  FBT.ResetProfile(FostercareBattleTextDB.CurrentProfile, true)
   AfterProfileChange()
   refresh[8]()
  end)
 
  return function()
-  local names = SortedKeys(MikSBT_Save.Profiles)
+  local names = SortedKeys(FostercareBattleTextDB.Profiles)
   local offset = pager:Set(table.getn(names))
   for i, row in ipairs(rows) do
    local profileName = names[offset + i]
    if profileName then
     row.name = profileName
     row.label:SetText(profileName)
-    UI.SetCheck(row.radio, profileName == MikSBT_Save.CurrentProfile)
-    UI.SetEnabled(row.delete, profileName ~= MikSBT.DEFAULT_PROFILE_NAME)
+    UI.SetCheck(row.radio, profileName == FostercareBattleTextDB.CurrentProfile)
+    UI.SetEnabled(row.delete, profileName ~= FBT.DEFAULT_PROFILE_NAME)
     row:Show()
    else
     row:Hide()
@@ -921,15 +1025,15 @@ local TABS = {
 }
 
 local function Create()
- panel = UI.Window("MSBT_Options", "Mik's Scrolling Battle Text", WIDTH, 410, GetAddOnMetadata(addonName, "Version"))
+ panel = UI.Window("FBT_Options", "Fostercare Battle Text", WIDTH, 410, FBT.VERSION)
  local pages
- pages, ShowTab = UI.Tabs(panel, "MSBT_", TABS, function(index)
+ pages, ShowTab = UI.Tabs(panel, "FBT_", TABS, function(index)
   panel.tab = index
   refresh[index]()
  end)
  for i, tab in ipairs(TABS) do refresh[i] = tab.build(pages[i]) end
 
- inlineEdit = TextBox("MSBT_InlineEdit", panel, 0, 0, 200, function(text)
+ inlineEdit = TextBox("FBT_InlineEdit", panel, 0, 0, 200, function(text)
   inlineEdit:Hide()
   if inlineAccept then inlineAccept(text) end
  end)
@@ -939,8 +1043,8 @@ local function Create()
 
  panel:SetScript("OnShow", function() ShowTab(panel.tab or 1) end)
  panel:SetScript("OnHide", function()
-  -- Keep the chosen color, close MSBT's own editors and movers.
-  MikSBTOpt.RetireColorPicker(false)
+  -- Keep the chosen color, close FBT's own editors and movers.
+  Options.RetireColorPicker(false)
   inlineEdit:Hide()
   if fontEditor then fontEditor:Hide() end
   if triggerEditor then triggerEditor:Hide() end
@@ -948,33 +1052,33 @@ local function Create()
  end)
 end
 
-function MikSBTOpt.Toggle()
+function Options.Toggle()
  if not panel then Create() end
  if panel:IsShown() then panel:Hide() else panel:Show() end
 end
 
 -- Opens a tab (1-8); used by tests and the slash command.
-function MikSBTOpt.ShowTab(index)
+function Options.ShowTab(index)
  if not panel then Create() end
  panel:Show()
  ShowTab(index)
 end
 
- -- Game Menu > AddOn Options > MikScrollingBattleText (ClassicAPI).
- local entry = CreateFrame("Frame", "MSBTOptionsEntry")
- entry.name = "MikScrollingBattleText"
- local entryTitle = entry:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
- entryTitle:SetPoint("TOPLEFT", entry, "TOPLEFT", 16, -16)
- entryTitle:SetText("MikScrollingBattleText")
- local entryText = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
- entryText:SetPoint("TOPLEFT", entryTitle, "BOTTOMLEFT", 0, -8)
- entryText:SetWidth(380)
- entryText:SetJustifyH("LEFT")
- entryText:SetText("Scrolling combat text. Type /msbt to open the settings at any time.")
- local entryOpen = UI.Button("MSBTOptionsEntryOpen", entry, "Open settings", 16, -80, 172, function()
-     if InterfaceOptionsFrame and InterfaceOptionsFrame:IsShown() then InterfaceOptionsFrame:Hide() end
-     if GameMenuFrame and GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
-     MikSBTOpt.ShowTab(1)
- end)
- UI.Select(entryOpen, true)
- InterfaceOptions_AddCategory(entry)
+-- Game Menu > AddOn Options > FostercareBattleText (ClassicAPI).
+local entry = CreateFrame("Frame", "FBTOptionsEntry")
+entry.name = addonName
+local entryTitle = entry:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+entryTitle:SetPoint("TOPLEFT", entry, "TOPLEFT", 16, -16)
+entryTitle:SetText(addonName)
+local entryText = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+entryText:SetPoint("TOPLEFT", entryTitle, "BOTTOMLEFT", 0, -8)
+entryText:SetWidth(380)
+entryText:SetJustifyH("LEFT")
+entryText:SetText("Scrolling combat text. Type /fbt to open the settings at any time.")
+local entryOpen = UI.Button("FBTOptionsEntryOpen", entry, "Open settings", 16, -80, 172, function()
+ if InterfaceOptionsFrame and InterfaceOptionsFrame:IsShown() then InterfaceOptionsFrame:Hide() end
+ if GameMenuFrame and GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
+ Options.ShowTab(1)
+end)
+UI.Select(entryOpen, true)
+InterfaceOptions_AddCategory(entry)

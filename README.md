@@ -1,7 +1,8 @@
-# Mik's Scrolling Battle Text
+# FostercareBattleText
 
 Scrolling combat text for World of Warcraft 1.12.1: player and pet damage,
 heals, misses, absorbs, critical hits, resource gains and configurable alerts.
+Formerly Mik's Scrolling Battle Text (MSBT).
 
 ## Requirements
 
@@ -13,31 +14,43 @@ restart.
 
 ## Install or update
 
-Download `MikScrollingBattleText-1.2.0.zip` from
-[Releases](https://github.com/Fostercare5988/MikScrollingBattleText/releases/latest).
+Download the latest zip from
+[Releases](https://github.com/Fostercare5988/FostercareBattleText/releases/latest).
 Close the game and extract it into `Interface/AddOns`, so the TOC is at
-`Interface/AddOns/MikScrollingBattleText/MikScrollingBattleText.toc`.
-Enable the addon on the character-selection screen. Keep existing SavedVariables
-when updating to preserve profiles, fonts, triggers, filters and positions.
+`Interface/AddOns/FostercareBattleText/FostercareBattleText.toc`.
+
+Coming from MSBT: the folder, the saved settings (`FostercareBattleTextDB`,
+formerly `MikSBT_Save`) and the command changed. Delete the old
+`MikScrollingBattleText` folder, and copy
+`WTF/Account/<account>/SavedVariables/MikScrollingBattleText.lua` to
+`FostercareBattleText.lua` in the same folder, with `MikSBT_Save` on its first
+line renamed to `FostercareBattleTextDB`, to keep your profiles.
 
 ## Configure
 
-Type `/msbt`. The tabs are General, Areas, Incoming, Outgoing, Notices, Triggers,
-Filters and Profiles. See [the user guide](docs/USER_GUIDE.md).
+Type `/fbt` (`/msbt` still works). The tabs are General, Areas, Incoming,
+Outgoing, Notices, Triggers, Filters and Profiles. See
+[the user guide](docs/USER_GUIDE.md).
 
-Commands: `/msbt`, `/msbt enable`, `/msbt disable`, `/msbt version`, `/msbt reset`.
+Commands: `/fbt`, `/fbt enable`, `/fbt disable`, `/fbt version`, `/fbt reset`.
 
 ## Healing and other displays
 
 All combat text comes from ClassicAPI's combat log; heals show the total, as the
 log reports no overheal. Reputation comes from its `FACTION_STANDING_CHANGED`
-event.
+event, mana from `UNIT_POWER_UPDATE` (a druid's mana in every form).
 
-Show Game Damage controls native damage above enemy heads. Other addons retain
-their own resource, floating-text and encounter displays. Combat text does not
-capture mouse input.
+Game damage text controls the native damage numbers above enemies. Other addons
+keep their own floating text. Combat text does not capture mouse input.
+
+## For other addons
+
+`FostercareBattleText.DisplayMessage(text, displayType, sticky, r, g, b, size)`
+shows a line; `displayType` is `FostercareBattleText.DISPLAYTYPE_INCOMING`,
+`_OUTGOING` or `_NOTIFICATION`, and the colour channels are 0-255. MSBT's
+`MikSBT` table no longer exists.
 
 ## License and credits
 
 Original author: Mik. Maintained by [Fostercare5988](https://github.com/Fostercare5988). Licensed under the MIT License.
-The table recycler credits tekkub's compostLib; the settings window uses the ForgeUI kit. Original source credits are retained.
+The settings window uses the ForgeUI kit. Original source credits are retained.

@@ -1,0 +1,15 @@
+## Interface: 11200
+## Title: |cffff9e38FostercareBattleText|r |cffffd6a8[Fostercare5988]|r
+## Notes: Scrolling combat text from ClassicAPI's combat log. Formerly Mik's Scrolling Battle Text.
+## Author: Mik, Fostercare5988
+## X-Maintainer: Fostercare5988
+## Version: 2.0.0
+## SavedVariables: FostercareBattleTextDB
+## X-Category: Combat
+## X-Website: https://github.com/Fostercare5988
+
+Defaults.lua
+Combat.lua
+Core.lua
+ForgeUI.lua
+Options.lua
