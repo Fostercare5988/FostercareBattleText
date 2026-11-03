@@ -228,9 +228,6 @@ local animationMergeData = {
  ["Outgoing"]	= {["TimeSinceMerge"] = 0, TimerPending = false, Generation=0, UnmergedEvents={}, SpareEvents={}, MergedEvents={}},
 };
 
--- Holds whether or not a merge is still being processed.
-local stillMerging = false;
-
 -- Temp arrays for repositioning animation display data to avoid overlaps.
 local activeNonStickies = {};
 local activeStickies = {};
@@ -949,6 +946,7 @@ function MikSBT.RegisterTriggers()
    MikCEH.RegisterTrigger(triggerKey, triggerData.TriggerSettings);
   end
  end
+ MikCEH.UpdateUnitEvents();
 end
 
 
@@ -1330,24 +1328,22 @@ function MikSBT.ClearPendingEvents()
  end
 end
 
+-- The flags clear first: an error while showing one batch must not stop the
+-- area for the rest of the session.
 local function ProcessMerge(mergeData)
- if not mergeData or stillMerging then return end;
- stillMerging = true;
- local generation = mergeData.Generation;
+ mergeData.TimerPending, mergeData.Timer = false, nil;
  local unmerged = mergeData.UnmergedEvents;
  mergeData.UnmergedEvents = mergeData.SpareEvents;
  mergeData.SpareEvents = unmerged;
- local numEvents = #unmerged;
- if numEvents > 0 then
-  MikSBT.MergeEvents(mergeData, unmerged, numEvents);
-  for i, animationEvent in ipairs(mergeData.MergedEvents) do
-   mergeData.MergedEvents[i] = nil;
-   if generation == mergeData.Generation then MikSBT.AddAnimation(animationEvent);
-   else eventsRecycler:ReclaimTable(animationEvent); end
+ local merged = mergeData.MergedEvents;
+ if #unmerged > 0 then
+  MikSBT.MergeEvents(mergeData, unmerged, #unmerged);
+  for i = 1, #merged do
+   local animationEvent = merged[i];
+   merged[i] = nil;
+   MikSBT.AddAnimation(animationEvent);
   end
  end
- stillMerging = false;
- mergeData.TimerPending = false;
  if #mergeData.UnmergedEvents > 0 then ScheduleMerge(mergeData) end;
 end
 
@@ -1356,9 +1352,7 @@ ScheduleMerge = function(data)
  data.TimerPending = true;
  local generation = data.Generation;
  data.Timer = C_Timer.NewTimer(MERGE_DELAY_TIME, function()
-  if data.Generation ~= generation then return end;
-  data.Timer = nil;
-  ProcessMerge(data);
+  if data.Generation == generation then ProcessMerge(data) end
  end);
 end
 
@@ -1403,10 +1397,9 @@ end
 -- Add the event to the appropriate scroll area's animation display array.
 -- **********************************************************************************
 
-function MikSBT.PatternMatches(text, pattern)
- if type(text) ~= "string" or type(pattern) ~= "string" then return false end;
- local ok, first = pcall(string_find, text, pattern);
- return ok and first ~= nil;
+-- Filters hide a message whose text or spell name contains the filter text.
+local function Contains(text, part)
+ return text ~= nil and part ~= nil and part ~= "" and string_find(text, part, 1, true) ~= nil;
 end
 
 function MikSBT.AddAnimation(animationEvent)
@@ -1414,14 +1407,9 @@ function MikSBT.AddAnimation(animationEvent)
  MikSBT.FormatEventText(animationEvent);
 
  -- Loop through all of the suppression entries and look for a match.
- for _, suppressionSettings in pairs(MikSBT.CurrentProfile.Suppressions or {}) do
-  -- Check if the suppression's search pattern is a match.
-  if (suppressionSettings.Enabled and (MikSBT.PatternMatches(animationEvent.Text, suppressionSettings.SearchPattern))) then
-   -- Reclaim the animation event table to the events recycler and leave the function.
-   eventsRecycler:ReclaimTable(animationEvent);
-   return;
-  elseif (suppressionSettings.Enabled and animationEvent.EffectName and MikSBT.PatternMatches(animationEvent.EffectName, suppressionSettings.SearchPattern)) then
-   -- Reclaim the animation event table to the events recycler and leave the function.
+ for _, filter in pairs(MikSBT.CurrentProfile.Suppressions) do
+  if filter.Enabled and (Contains(animationEvent.Text, filter.SearchPattern) or
+     Contains(animationEvent.EffectName, filter.SearchPattern)) then
    eventsRecycler:ReclaimTable(animationEvent);
    return;
   end

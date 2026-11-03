@@ -14,11 +14,11 @@ local string_find, string_match = string.find, string.match
 local string_len, string_sub = string.len, string.sub
 local table_wipe = table.wipe
 local GetTime, UnitHealth, UnitHealthMax = GetTime, UnitHealth, UnitHealthMax
-local UnitMana, UnitManaMax, UnitName, UnitClass = UnitMana, UnitManaMax, UnitName, UnitClass
+local UnitPower, UnitPowerMax, UnitClass = UnitPower, UnitPowerMax, UnitClass
 local UnitIsFriend, UnitExists, UnitGUID = UnitIsFriend, UnitExists, UnitGUID
-local UnitPowerType, GetComboPoints = UnitPowerType, GetComboPoints
+local GetComboPoints, next, unpack = GetComboPoints, next, unpack
 local GetSpellInfo = GetSpellInfo
-local pairs, tonumber, type, pcall = pairs, tonumber, type, pcall
+local pairs, tonumber, type = pairs, tonumber, type
 local bit_band = bit.band
 
 -------------------------------------------------------------------------------------
@@ -208,6 +208,9 @@ local MAX_CACHED_SPELLS = 256;
 local lastXP, lastXPMax;
 
 local combatLogFrame = nil;
+-- Whether the helper's events are on (off while the addon is disabled).
+local eventsOn = false;
+local healthUnits = {};
 
 -------------------------------------------------------------------------------------
 -- Helpers
@@ -357,9 +360,15 @@ combatLogHandlers.SPELL_DAMAGE = SpellDamage;
 combatLogHandlers.SPELL_PERIODIC_DAMAGE = SpellDamage;
 combatLogHandlers.RANGE_DAMAGE = SpellDamage;
 combatLogHandlers.DAMAGE_SPLIT = SpellDamage;
--- A damage shield names no spell.
+-- A damage shield names its spell (Thorns) when the owner has one shield of
+-- that school; otherwise spellId is 0 and the name nil.
+local function ShieldSpell()
+ if v12 ~= 0 then return v12, v13 or "Damage Shield" end
+ return nil, "Damage Shield";
+end
 combatLogHandlers.DAMAGE_SHIELD = function(sourceGUID, destGUID)
- Damage(sourceGUID, destGUID, nil, "Damage Shield", v15, v17, v18, v19, v20);
+ local spellId, spellName = ShieldSpell();
+ Damage(sourceGUID, destGUID, spellId, spellName, v15, v17, v18, v19, v20, v21, v22, v23);
 end
 
 local function SpellMiss(sourceGUID, destGUID)
@@ -369,7 +378,8 @@ combatLogHandlers.SPELL_MISSED = SpellMiss;
 combatLogHandlers.SPELL_PERIODIC_MISSED = SpellMiss;
 combatLogHandlers.RANGE_MISSED = SpellMiss;
 combatLogHandlers.DAMAGE_SHIELD_MISSED = function(sourceGUID, destGUID)
- Miss(sourceGUID, destGUID, nil, "Damage Shield", v15);
+ local spellId, spellName = ShieldSpell();
+ Miss(sourceGUID, destGUID, spellId, spellName, v15);
 end
 
 -- Environment: type, then amount, overkill, school, resisted, blocked, absorbed.
@@ -494,10 +504,6 @@ function MikCEH.RegisterEvents()
   MCEHEventFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
   MCEHEventFrame:RegisterEvent("PLAYER_REGEN_DISABLED");
   MCEHEventFrame:RegisterEvent("PLAYER_COMBO_POINTS");
-  -- Only the units with triggers; other tokens never reach Lua.
-  MCEHEventFrame:RegisterUnitEvent("UNIT_HEALTH", "player", "pet", "target");
-  MCEHEventFrame:RegisterUnitEvent("UNIT_MANA", "player");
-  MCEHEventFrame:RegisterEvent("PLAYER_TARGET_CHANGED");
   MCEHEventFrame:RegisterEvent("UNIT_PET");
   MCEHEventFrame:RegisterEvent("CHAT_MSG_COMBAT_HONOR_GAIN");
   MCEHEventFrame:RegisterEvent("FACTION_STANDING_CHANGED");
@@ -506,7 +512,30 @@ function MikCEH.RegisterEvents()
   MCEHEventFrame:RegisterEvent("PLAYER_XP_UPDATE");
  end
  if combatLogFrame then combatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") end
+ eventsOn = true;
+ MikCEH.UpdateUnitEvents();
+end
+
+-- Health, target and mana events only for the units that triggers or "All mana
+-- gains" read; with none, those events never reach Lua.
+function MikCEH.UpdateUnitEvents()
+ local frame = MCEHEventFrame;
+ frame:UnregisterEvent("UNIT_HEALTH");
+ frame:UnregisterEvent("PLAYER_TARGET_CHANGED");
+ frame:UnregisterEvent("UNIT_POWER_UPDATE");
  MikCEH.ResetThresholdState();
+ if not eventsOn then return end
+ table_wipe(healthUnits);
+ if next(selfHealthTriggers) then healthUnits[#healthUnits + 1] = "player" end
+ if next(petHealthTriggers) then healthUnits[#healthUnits + 1] = "pet" end
+ if next(enemyHealthTriggers) or next(friendlyHealthTriggers) then
+  healthUnits[#healthUnits + 1] = "target";
+  frame:RegisterEvent("PLAYER_TARGET_CHANGED");
+ end
+ if healthUnits[1] then frame:RegisterUnitEvent("UNIT_HEALTH", unpack(healthUnits)) end
+ if next(selfManaTriggers) or (MikSBT.CurrentProfile and MikSBT.CurrentProfile.ShowAllManaGains) then
+  frame:RegisterUnitEvent("UNIT_POWER_UPDATE", "player");
+ end
 end
 
 function MikCEH.UnregisterEvents()
@@ -514,9 +543,6 @@ function MikCEH.UnregisterEvents()
   MCEHEventFrame:UnregisterEvent("PLAYER_REGEN_ENABLED");
   MCEHEventFrame:UnregisterEvent("PLAYER_REGEN_DISABLED");
   MCEHEventFrame:UnregisterEvent("PLAYER_COMBO_POINTS");
-  MCEHEventFrame:UnregisterEvent("UNIT_HEALTH");
-  MCEHEventFrame:UnregisterEvent("UNIT_MANA");
-  MCEHEventFrame:UnregisterEvent("PLAYER_TARGET_CHANGED");
   MCEHEventFrame:UnregisterEvent("UNIT_PET");
   MCEHEventFrame:UnregisterEvent("CHAT_MSG_COMBAT_HONOR_GAIN");
   MCEHEventFrame:UnregisterEvent("FACTION_STANDING_CHANGED");
@@ -525,7 +551,8 @@ function MikCEH.UnregisterEvents()
  end
  lastXP, lastXPMax = nil, nil;
  if combatLogFrame then combatLogFrame:UnregisterAllEvents() end
- MikCEH.ResetThresholdState();
+ eventsOn = false;
+ MikCEH.UpdateUnitEvents();
 end
 
 function MikCEH.OnLoad()
@@ -568,9 +595,6 @@ function MikCEH.OnEvent()
   end
 
  elseif (event == "UNIT_HEALTH") then
-  if arg1 == "player" and not next(selfHealthTriggers) then return end;
-  if arg1 == "pet" and not next(petHealthTriggers) then return end;
-  if arg1 == "target" and not next(enemyHealthTriggers) and not next(friendlyHealthTriggers) then return end;
   local lastCheck = lastHealthTriggerCheckTime[arg1];
   if not lastCheck then return end;
   local now = GetTime();
@@ -588,9 +612,8 @@ function MikCEH.OnEvent()
    end);
   end
 
- elseif (event == "UNIT_MANA") then
-  if arg1 ~= "player" then return end;
-  MikCEH.ParseSelfManaTriggers();
+ elseif (event == "UNIT_POWER_UPDATE") then
+  if arg2 == "MANA" then MikCEH.ParseSelfManaTriggers() end
 
  elseif (event == "PLAYER_TARGET_CHANGED") then
   if pendingHealthChecks.target then pendingHealthChecks.target:Cancel(); pendingHealthChecks.target = nil end;
@@ -868,19 +891,13 @@ function MikCEH.UnregisterAllTriggers()
  MikCEH.EraseTable(targetDodgesTriggers);
 end
 
--- Start mana-gain observation from the current amount. Called when "Show All
--- Mana Gains" is switched on, because observation stops while it is off.
-function MikCEH.ResetManaBaseline()
- lastSelfManaAmount = UnitMana("player") or 0;
-end
-
 function MikCEH.ResetThresholdState()
  thresholdGeneration = thresholdGeneration + 1;
  for unit, timer in pairs(pendingHealthChecks) do timer:Cancel(); pendingHealthChecks[unit] = nil end;
  lastSelfHealthPercentage, lastPetHealthPercentage = 0, 0;
  lastEnemyHealthPercentage, lastFriendlyHealthPercentage = 0, 0;
  lastSelfManaPercentage = 0;
- lastSelfManaAmount = UnitMana("player") or 0;
+ lastSelfManaAmount = UnitPower("player", 0);
  lastHealthTriggerCheckTime.player, lastHealthTriggerCheckTime.pet, lastHealthTriggerCheckTime.target = 0, 0, 0;
 end
 
@@ -919,30 +936,27 @@ function MikCEH.ParseFriendlyHealthTriggers()
  lastFriendlyHealthPercentage = CheckHealthThresholds("target", friendlyHealthTriggers, lastFriendlyHealthPercentage);
 end
 
+-- Mana by type, so a druid's mana is read in every form.
 function MikCEH.ParseSelfManaTriggers()
- if not next(selfManaTriggers) and not (MikSBT.CurrentProfile and MikSBT.CurrentProfile.ShowAllManaGains) then return end;
- if (UnitPowerType("player") == 0) then
-  local manaAmount = UnitMana("player");
-  local maxMana = UnitManaMax("player");
-  if not maxMana or maxMana == 0 then return end
-  local manaPercentage = manaAmount / maxMana;
+ local manaAmount, maxMana = UnitPower("player", 0), UnitPowerMax("player", 0);
+ if maxMana == 0 then return end
+ local manaPercentage = manaAmount / maxMana;
 
-  local manaDiff = manaAmount - lastSelfManaAmount;
-  if (manaDiff > 0 and MikSBT.CurrentProfile and MikSBT.CurrentProfile.ShowAllManaGains) then
-   local eventData = MikCEH.GetNotificationEventData(MikCEH.NOTIFICATIONTYPE_POWER_GAIN, manaDiff, MANA);
-   MikCEH.SendEvent(eventData);
-  end
+ local manaDiff = manaAmount - lastSelfManaAmount;
+ if (manaDiff > 0 and MikSBT.CurrentProfile and MikSBT.CurrentProfile.ShowAllManaGains) then
+  local eventData = MikCEH.GetNotificationEventData(MikCEH.NOTIFICATIONTYPE_POWER_GAIN, manaDiff, MANA);
+  MikCEH.SendEvent(eventData);
+ end
 
-  for triggerKey, triggerSettings in pairs(selfManaTriggers) do
-   if (manaPercentage < triggerSettings.Threshold/100 and lastSelfManaPercentage >= triggerSettings.Threshold/100) then
-    local eventData = MikCEH.GetThresholdTriggerEventData(triggerKey, manaAmount);
-    MikCEH.SendTriggerEvent(eventData);
-    if MikSBT.CurrentProfile and MikSBT.CurrentProfile.LowManaSound then
-     PlaySoundFile("Interface\\AddOns\\MikScrollingBattleText\\sounds\\LowMana.mp3", "Master");
-    end
+ for triggerKey, triggerSettings in pairs(selfManaTriggers) do
+  if (manaPercentage < triggerSettings.Threshold/100 and lastSelfManaPercentage >= triggerSettings.Threshold/100) then
+   local eventData = MikCEH.GetThresholdTriggerEventData(triggerKey, manaAmount);
+   MikCEH.SendTriggerEvent(eventData);
+   if MikSBT.CurrentProfile and MikSBT.CurrentProfile.LowManaSound then
+    PlaySoundFile("Interface\\AddOns\\MikScrollingBattleText\\sounds\\LowMana.mp3", "Master");
    end
   end
-  lastSelfManaPercentage = manaPercentage;
-  lastSelfManaAmount = manaAmount;
  end
+ lastSelfManaPercentage = manaPercentage;
+ lastSelfManaAmount = manaAmount;
 end

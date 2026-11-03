@@ -315,11 +315,11 @@ local function AreaChain(area)
  return {Profile().DisplaySettings[area].FontSettings, Profile().MasterFontSettings}
 end
 
-function MikSBTOpt.EditEventFonts(area, eventType)
+function MikSBTOpt.EditEventFonts(area, eventType, label)
  local settings = Profile().EventSettings[eventType].FontSettings
  local chain = AreaChain(area)
  table.insert(chain, 1, settings)
- EditFonts({title = eventType, own = {Normal = settings.Normal, Crit = settings.Crit}, chain = chain, inherit = true})
+ EditFonts({title = label, own = {Normal = settings.Normal, Crit = settings.Crit}, chain = chain, inherit = true})
 end
 
 -------------------------------------------------------------------------------------
@@ -342,8 +342,8 @@ local function BuildGeneral(page)
  ProfileSwitch("ShowPartialEffects", "Partial effects", "Add absorbed, blocked, resisted, crushing and glancing amounts.", 28, -158)
  ProfileSwitch("UseStickyCrits", "Sticky criticals", "Critical hits pop in the middle of the area instead of scrolling.", 28, -194)
  ProfileSwitch("ShowAllManaGains", "All mana gains", "Show every mana increase, including regeneration and drinking.", 28, -230, function(value)
-  -- Mana is not observed while this is off; start from the current amount.
-  if value then MikCEH.ResetManaBaseline() end
+  -- Mana is observed only while something reads it.
+  MikCEH.UpdateUnitEvents()
  end)
  local gameDamage = UI.Switch("MSBT_ShowGameDamage", page, "Game damage text", "Keep the game's own damage numbers above enemies.", 28, -266, function(value)
   MikSBT.SetOptionShowGameDamage(value)
@@ -527,7 +527,7 @@ local function BuildEvents(page, area, tab)
    UI.Tooltip(row.icon, "Show a large icon beside this message.")
   end
   row.font = UI.Button(prefix .. i .. "Font", row, "Font", 494, -2, 44, function()
-   MikSBTOpt.EditEventFonts(area, row.eventType)
+   MikSBTOpt.EditEventFonts(area, row.eventType, row.show.label:GetText())
   end, {ghost = true})
   rows[i] = row
  end
@@ -782,7 +782,7 @@ end
 
 local function BuildFilters(page)
  local rows, pager = {}, nil
- UI.Heading(page, "Hide text that matches a pattern", 28, -98)
+ UI.Heading(page, "Hide messages that contain", 28, -98)
  for i = 1, ROWS_PER_PAGE do
   local row = UI.Row("MSBT_FilterRow" .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
   local function Filter() return Profile().Suppressions[row.key] end
@@ -795,7 +795,7 @@ local function BuildFilters(page)
     refresh[7]()
    end)
   end)
-  UI.Tooltip(row.pattern, "A Lua pattern matched against the shown text and the spell name.")
+  UI.Tooltip(row.pattern, "Hides every message whose text or spell name contains this text.")
   UI.Button("MSBT_FilterRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
    Profile().Suppressions[row.key] = nil
    refresh[7]()
