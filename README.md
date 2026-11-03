@@ -29,7 +29,8 @@ line renamed to `FostercareBattleTextDB`, to keep your profiles.
 ## Configure
 
 Type `/fbt` (`/msbt` still works). The tabs are General, Areas, Incoming,
-Outgoing, Notices, Triggers, Filters and Profiles. See
+Outgoing, Notices, Triggers, Filters and Profiles. Each tab is also a page under
+FostercareBattleText in Game Menu > AddOn Options, in one column. See
 [the user guide](docs/USER_GUIDE.md).
 
 Commands: `/fbt`, `/fbt enable`, `/fbt disable`, `/fbt version`, `/fbt reset`.

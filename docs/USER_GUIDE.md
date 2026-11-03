@@ -5,6 +5,11 @@ Areas, Incoming, Outgoing, Notices, Triggers, Filters and Profiles**. Every
 change applies at once and is saved in `FostercareBattleTextDB` when you log out
 or reload. The close button or Escape closes the window.
 
+The same eight pages are under **FostercareBattleText** in Game Menu > AddOn
+Options, one column each; scroll down for the rest of a page. Its first entry
+opens the window. Opening the window closes AddOn Options, and a page shows in
+one place at a time.
+
 ## General
 
 Turn the battle text on or off (while it is off, the game shows its own damage

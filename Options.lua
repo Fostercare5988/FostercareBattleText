@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------------
--- FostercareBattleText: the settings window (ForgeUI).
+-- FostercareBattleText: the settings window (ForgeUI) and its pages in AddOn Options.
 -------------------------------------------------------------------------------------
 
 local addonName, FBT = ...
@@ -116,15 +116,28 @@ local EVENTS = {
  },
 };
 
-local WIDTH = 600
-local ROWS_PER_PAGE = 10
+local WIDTH, ROWS_PER_PAGE = 600, 10
+-- The window's left margin, column width (ForgeLayout), the width from which a
+-- block uses the window's places, and the extra space between switch lines.
+local LEFT, SIDE, WIDE, ROW_GAP = 28, 208, 440, 10
+local PAGER_WIDTH = 160
 local AREAS = {"Incoming", "Outgoing", "Notification"}
 local AREA_LABELS = {Incoming = "Incoming", Outgoing = "Outgoing", Notification = "Notices"}
 
+local L, R = UI.L, UI.R
+local layout = UI.NewLayout()
 local panel, ShowTab, fontEditor, triggerEditor
-local refresh = {}
+local book                      -- the pages in AddOn Options (ForgeLayout.lua)
+local refresh = {}              -- each page's sync: values and visibility only
+local tab = 1
 local selectedArea = "Incoming"
 local moversShown = false
+
+-- Syncs the open page, then places it for the width it has (window or AddOn Options).
+local function Refresh()
+ if refresh[tab] then refresh[tab]() end
+ if book then book:Place(tab) end
+end
 
 local function Profile() return FBT.CurrentProfile end
 
@@ -190,16 +203,21 @@ local function Cycle(name, parent, x, y, width, onStep)
  return frame
 end
 
+-- "<  Page 1 of 2  >" in one frame, a footer of its page: centred along the
+-- window's bottom, under the list in AddOn Options.
 local function Pager(name, parent, onPage)
  local pager = {page = 1, pages = 1}
- local text = parent:CreateFontString(name .. "Text", "OVERLAY", "GameFontDisableSmall")
- text:SetPoint("BOTTOM", parent, "BOTTOM", 0, 22)
+ local frame = CreateFrame("Frame", name, parent)
+ frame:SetWidth(PAGER_WIDTH); frame:SetHeight(22)
+ local text = frame:CreateFontString(name .. "Text", "OVERLAY", "GameFontDisableSmall")
+ text:SetPoint("CENTER", frame, "CENTER", 0, 0)
  UI.Color(text, "hint")
  local style = {ghost = true}
- local prev = UI.Button(name .. "Prev", parent, "<", 0, 0, 24, function() onPage(-1) end, style)
+ local prev = UI.Button(name .. "Prev", frame, "<", 0, 0, 24, function() onPage(-1) end, style)
  prev:ClearAllPoints(); prev:SetPoint("RIGHT", text, "LEFT", -8, 0)
- local nextButton = UI.Button(name .. "Next", parent, ">", 0, 0, 24, function() onPage(1) end, style)
+ local nextButton = UI.Button(name .. "Next", frame, ">", 0, 0, 24, function() onPage(1) end, style)
  nextButton:ClearAllPoints(); nextButton:SetPoint("LEFT", text, "RIGHT", 8, 0)
+ layout:Footer(parent, frame, (WIDTH - PAGER_WIDTH) / 2)
  function pager:Set(total)
   self.pages = math.max(1, math.ceil(total / ROWS_PER_PAGE))
   if self.page > self.pages then self.page = self.pages end
@@ -424,49 +442,65 @@ function Options.EditEventFonts(area, eventType, label)
 end
 
 -------------------------------------------------------------------------------------
+-- Pages are built as sections (ForgeLayout.lua): two columns in the 600-wide
+-- window, one at full size in AddOn Options. Lists and rows are blocks that lay
+-- themselves out for the width they get: the window's places at 440 and over,
+-- stacked under that.
+-------------------------------------------------------------------------------------
+
+local function Move(region, parent, x, y)
+ region:ClearAllPoints()
+ region:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
+end
+
+-------------------------------------------------------------------------------------
 -- General tab.
 -------------------------------------------------------------------------------------
 
 local function BuildGeneral(page)
  local switches = {}
- UI.Heading(page, "Display", 28, -98)
- local enabled = UI.Switch("FBT_Enabled", page, "Enable", "Show scrolling combat text. While off, the game shows its own damage numbers.", 28, -122, function(value)
+ layout:Heading(page, L, "Display")
+ local enabled = UI.Switch("FBT_Enabled", page, "Enable", "Show scrolling combat text. While off, the game shows its own damage numbers.", 0, 0, function(value)
   FBT.SetOptionUserDisabled(not value)
-  refresh[1]()
+  Refresh()
  end)
- local function ProfileSwitch(key, text, tip, x, y, after)
-  switches[key] = UI.Switch("FBT_" .. key, page, text, tip, x, y, function(value)
+ layout:Switch(page, L, enabled)
+ local function ProfileSwitch(column, key, text, tip, after)
+  switches[key] = UI.Switch("FBT_" .. key, page, text, tip, 0, 0, function(value)
    Profile()[key] = value
    if after then after(value) end
   end)
+  layout:Switch(page, column, switches[key], {before = ROW_GAP})
  end
- ProfileSwitch("ShowPartialEffects", "Partial effects", "Add absorbed, blocked, resisted, crushing and glancing amounts.", 28, -158)
- ProfileSwitch("UseStickyCrits", "Sticky criticals", "Critical hits pop in the middle of the area instead of scrolling.", 28, -194)
- ProfileSwitch("ShowAllManaGains", "All mana gains", "Show every mana increase, including regeneration and drinking.", 28, -230, function(value)
+ ProfileSwitch(L, "ShowPartialEffects", "Partial effects", "Add absorbed, blocked, resisted, crushing and glancing amounts.")
+ ProfileSwitch(L, "UseStickyCrits", "Sticky criticals", "Critical hits pop in the middle of the area instead of scrolling.")
+ ProfileSwitch(L, "ShowAllManaGains", "All mana gains", "Show every mana increase, including regeneration and drinking.", function()
   -- Mana is observed only while something reads it.
   Combat.UpdateUnitEvents()
  end)
- local gameDamage = UI.Switch("FBT_ShowGameDamage", page, "Game damage text", "Keep the game's own damage numbers above enemies.", 28, -266, function(value)
+ local gameDamage = UI.Switch("FBT_ShowGameDamage", page, "Game damage text", "Keep the game's own damage numbers above enemies.", 0, 0, function(value)
   FBT.SetOptionShowGameDamage(value)
  end)
+ layout:Switch(page, L, gameDamage, {before = ROW_GAP})
 
- UI.Heading(page, "Sounds", 264, -98)
- ProfileSwitch("LowHealthSound", "Low health", "Play a sound when a low health trigger fires.", 264, -122)
- ProfileSwitch("LowManaSound", "Low mana", "Play a sound when a low mana trigger fires.", 264, -158)
- ProfileSwitch("ResistSound", "Frost resists", "Play a sound when your Cone of Cold or Frost Nova is resisted.", 264, -194)
+ layout:Heading(page, R, "Sounds")
+ ProfileSwitch(R, "LowHealthSound", "Low health", "Play a sound when a low health trigger fires.")
+ ProfileSwitch(R, "LowManaSound", "Low mana", "Play a sound when a low mana trigger fires.")
+ ProfileSwitch(R, "ResistSound", "Frost resists", "Play a sound when your Cone of Cold or Frost Nova is resisted.")
 
- local speed = UI.Slider("FBT_AnimationStep", page, "Scroll speed", 28, -310, 210, 1, 5, 0.5, function(value)
+ layout:Section(page)
+ local speed = UI.Slider("FBT_AnimationStep", page, "Scroll speed", 0, 0, SIDE, 1, 5, 0.5, function(value)
   Profile().AnimationStep = value
  end)
-
- UI.Button("FBT_MasterFonts", page, "Fonts", 300, -306, 172, function()
+ layout:Slider(page, L, speed, {before = {22, 12}})
+ layout:Button(page, R, UI.Button("FBT_MasterFonts", page, "Fonts", 0, 0, 172, function()
   local fonts = Profile().MasterFontSettings
   EditFonts({title = "Master fonts", own = {Normal = fonts.Normal, Crit = fonts.Crit}, chain = MasterChain(), inherit = false})
- end)
- UI.Button("FBT_GameDamageFont", page, "Game damage font", 300, -336, 172, function()
+ end), {before = {18, 4}, indent = 36})
+ layout:Button(page, R, UI.Button("FBT_GameDamageFont", page, "Game damage font", 0, 0, 172, function()
   local fonts = Profile().BlizzardFontSettings
   EditFonts({title = "Game damage font", own = {Normal = fonts.Normal}, chain = {fonts}, inherit = false, blizzard = true})
- end)
+ end), {before = 6, indent = 36})
 
  return function()
   local enabledNow = not FostercareBattleTextDB.UserDisabled
@@ -525,49 +559,65 @@ local function ShowMovers(shown)
 end
 
 local function BuildAreas(page)
- local areaButtons, SelectArea = UI.Segmented("FBT_Area", page, {"Incoming", "Outgoing", "Notices"}, 28, -98, 300, function(index)
-  selectedArea = AREAS[index]
-  refresh[2]()
- end, {height = 26})
  local function Settings() return Profile().DisplaySettings[selectedArea] end
- local show = UI.Switch("FBT_AreaShow", page, "Show this area", "Show the events of this area.", 352, -104, function(value)
+ local _, SelectArea, areaTrack = UI.Segmented("FBT_Area", page, {"Incoming", "Outgoing", "Notices"}, 0, 0, 300, function(index)
+  selectedArea = AREAS[index]
+  Refresh()
+ end, {height = 26})
+ local show = UI.Switch("FBT_AreaShow", page, "Show this area", "Show the events of this area.", 0, 0, function(value)
   Settings().Show = value
  end)
+ layout:Section(page, true)
+ -- The area to set, and whether it shows: one line in the window, two narrower.
+ layout:Add(page, L, {place = function(x, y, width)
+  Move(areaTrack, page, x, y)
+  if width >= WIDE then Move(show, page, x + 324, y - 8); return 32 end
+  Move(show, page, x, y - 36)
+  return 58
+ end})
 
- UI.Heading(page, "Movement", 28, -144)
- local _, SelectStyle = UI.Segmented("FBT_AreaStyle", page, {"Straight", "Curve left", "Curve right"}, 28, -164, 300, function(index)
+ layout:Heading(page, L, "Movement")
+ local _, SelectStyle, styleTrack = UI.Segmented("FBT_AreaStyle", page, {"Straight", "Curve left", "Curve right"}, 0, 0, 300, function(index)
   Settings().AnimationStyle = index
-  refresh[2]()
+  Refresh()
  end, {height = 24})
- local _, SelectDirection = UI.Segmented("FBT_AreaDirection", page, {"Up", "Down"}, 352, -164, 120, function(index)
+ local _, SelectDirection, directionTrack = UI.Segmented("FBT_AreaDirection", page, {"Up", "Down"}, 0, 0, 120, function(index)
   Settings().ScrollDirection = index
-  refresh[2]()
+  Refresh()
  end, {height = 24})
- UI.Heading(page, "Text", 28, -204)
- local _, SelectAlign = UI.Segmented("FBT_AreaAlign", page, {"Left", "Center", "Right"}, 28, -224, 300, function(index)
+ layout:Add(page, L, {place = function(x, y, width)
+  Move(styleTrack, page, x, y)
+  if width >= WIDE then Move(directionTrack, page, x + 324, y); return 26 end
+  Move(directionTrack, page, x, y - 30)
+  return 56
+ end})
+
+ layout:Heading(page, L, "Text")
+ local _, SelectAlign, alignTrack = UI.Segmented("FBT_AreaAlign", page, {"Left", "Center", "Right"}, 0, 0, 300, function(index)
   Settings().FontSettings.TextAlignIndex = index
-  refresh[2]()
+  Refresh()
  end, {height = 24})
- local height = UI.Slider("FBT_AreaHeight", page, "Scroll height", 28, -264, 300, 100, 600, 10, function(value)
+ layout:Add(page, L, {height = 40, regions = {{alignTrack, "TOPLEFT", "TOPLEFT", 0, 0}}})
+
+ local height = UI.Slider("FBT_AreaHeight", page, "Scroll height", 0, 0, 300, 100, 600, 10, function(value)
   Settings().ScrollHeight = value
   if moversShown then PlaceMover(selectedArea) end
  end)
-
- local unlock = UI.Button("FBT_AreaUnlock", page, "Move areas", 352, -264, 120, function()
+ local unlock = UI.Button("FBT_AreaUnlock", page, "Move areas", 0, 0, 120, function()
   ShowMovers(not moversShown)
-  refresh[2]()
+  Refresh()
  end)
- UI.Button("FBT_AreaPreview", page, "Preview", 352, -294, 120, function()
+ local preview = UI.Button("FBT_AreaPreview", page, "Preview", 0, 0, 120, function()
   FBT.DisplayMessage("Incoming", FBT.DISPLAYTYPE_INCOMING, false, 255, 80, 80)
   FBT.DisplayMessage("Outgoing", FBT.DISPLAYTYPE_OUTGOING, false, 255, 255, 255)
   FBT.DisplayMessage("Notices", FBT.DISPLAYTYPE_NOTIFICATION, false, 255, 220, 120)
  end)
- UI.Button("FBT_AreaFonts", page, "Area fonts", 352, -324, 120, function()
+ local areaFonts = UI.Button("FBT_AreaFonts", page, "Area fonts", 0, 0, 120, function()
   local fonts = Profile().DisplaySettings[selectedArea].FontSettings
   EditFonts({title = AREA_LABELS[selectedArea] .. " fonts", own = {Normal = fonts.Normal, Crit = fonts.Crit},
    chain = AreaChain(selectedArea), inherit = true})
  end)
- UI.Button("FBT_AreaReset", page, "Reset positions", 28, -324, 140, function()
+ local reset = UI.Button("FBT_AreaReset", page, "Reset positions", 0, 0, 140, function()
   for _, area in ipairs(AREAS) do
    local default = FBT.DEFAULT_CONFIG.DisplaySettings[area].FrameOffsets
    Profile().DisplaySettings[area].FrameOffsets.x = default.x
@@ -576,7 +626,20 @@ local function BuildAreas(page)
   FBT.RepositionAnimationFrames()
   if moversShown then ShowMovers(true) end
  end)
- UI.Label(page, "Move areas shows a handle per area; drag it to place the area.", 28, -362, "GameFontDisableSmall")
+ -- The height slider with the buttons beside it in the window; one a line narrower.
+ layout:Add(page, L, {place = function(x, y, width)
+  if width >= WIDE then
+   UI.MoveSlider(height, page, x, y, 300)
+   Move(unlock, page, x + 324, y); Move(preview, page, x + 324, y - 30)
+   Move(areaFonts, page, x + 324, y - 60); Move(reset, page, x, y - 60)
+   return 98
+  end
+  UI.MoveSlider(height, page, x, y, math.min(300, width))
+  Move(unlock, page, x, y - 46); Move(preview, page, x, y - 76)
+  Move(areaFonts, page, x, y - 106); Move(reset, page, x, y - 136)
+  return 162
+ end})
+ layout:Hint(page, L, "Move areas shows a handle per area; drag it to place the area.", {before = 0})
 
  return function()
   local settings = Settings()
@@ -591,39 +654,59 @@ local function BuildAreas(page)
 end
 
 -------------------------------------------------------------------------------------
+-- Lists: ten rows a page, a pager under them. In the window every page keeps
+-- room for ten rows; in AddOn Options only the rows shown take room.
+-------------------------------------------------------------------------------------
+
+local function ListBlock(page, rows, placeRow)
+ layout:Add(page, L, {place = function(x, y, width)
+  local wide, top = width >= WIDE, y
+  for _, row in ipairs(rows) do
+   if wide or row:IsShown() then
+    Move(row, page, x, y)
+    row:SetWidth(width)
+    y = y - placeRow(row, wide, width) - 2
+   end
+  end
+  return top - y
+ end})
+end
+
+-------------------------------------------------------------------------------------
 -- Incoming, Outgoing and Notices tabs: one row per event.
 -------------------------------------------------------------------------------------
 
-local function BuildEvents(page, area, tab)
+local function BuildEvents(page, area)
  local rows, pager = {}, nil
  local prefix = "FBT_" .. area .. "Row"
- UI.Heading(page, "Show / Color / Message (click to edit) / Font", 28, -98)
+ local notices = area == "Notification"
+ layout:Section(page, true)
+ layout:Heading(page, L, "Show / Color / Message (click to edit) / Font")
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row(prefix .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
+  local row = UI.Row(prefix .. i, page, 0, 0, WIDTH - 56)
   row.show = UI.Switch(prefix .. i .. "Show", row, "", nil, 4, -5, function(value)
    Profile().EventSettings[row.eventType].Show = value
   end, 150)
   row.swatch = Swatch(prefix .. i .. "Color", row, function()
    PickColor(row.swatch, Profile().EventSettings[row.eventType].FontSettings.Color)
   end)
-  row.swatch:SetPoint("LEFT", row, "LEFT", 190, 0)
-  row.message = MessageButton(prefix .. i .. "Message", row, 214, area == "Notification" and 168 or 220, function()
+  row.message = MessageButton(prefix .. i .. "Message", row, 214, notices and 168 or 220, function()
    EditInline(row.message, Profile().EventSettings[row.eventType].Message, function(text)
     Profile().EventSettings[row.eventType].Message = text
-    refresh[tab]()
+    Refresh()
    end)
   end)
-  if area == "Notification" then
+  if notices then
    row.sticky = UI.Button(prefix .. i .. "Sticky", row, "Sticky", 438, -2, 52, function()
     local settings = Profile().EventSettings[row.eventType]
     settings.IsSticky = not settings.IsSticky
-    refresh[tab]()
+    Refresh()
    end, {ghost = true})
    UI.Tooltip(row.sticky, "Pop this event in the middle of the area instead of scrolling it.")
    row.icon = UI.Button(prefix .. i .. "Icon", row, "Icon", 386, -2, 48, function()
     local settings = Profile().EventSettings[row.eventType]
     settings.BigIcon = not settings.BigIcon
-    refresh[tab]()
+    Refresh()
    end, {ghost = true})
    UI.Tooltip(row.icon, "Show a large icon beside this message.")
   end
@@ -632,7 +715,23 @@ local function BuildEvents(page, area, tab)
   end, {ghost = true})
   rows[i] = row
  end
- pager = Pager(prefix .. "Pager", page, function(step) pager.page = pager.page + step; refresh[tab]() end)
+ -- One line in the window; narrower, the message and its buttons on a second line.
+ ListBlock(page, rows, function(row, wide, width)
+  row:SetHeight(wide and 26 or 52)
+  if wide then
+   Move(row.swatch, row, 190, -5); Move(row.message, row, 214, -2)
+   row.message:SetWidth(notices and 168 or 220)
+   if notices then Move(row.icon, row, 386, -2); Move(row.sticky, row, 438, -2) end
+   Move(row.font, row, width - 50, -2)
+   return 26
+  end
+  Move(row.swatch, row, width - 78, -5); Move(row.font, row, width - 50, -2)
+  Move(row.message, row, 4, -26)
+  row.message:SetWidth(width - 8 - (notices and 108 or 0))
+  if notices then Move(row.icon, row, width - 108, -26); Move(row.sticky, row, width - 56, -26) end
+  return 52
+ end)
+ pager = Pager(prefix .. "Pager", page, function(step) pager.page = pager.page + step; Refresh() end)
 
  return function()
   local list = EVENTS[area]
@@ -789,7 +888,7 @@ local function CreateTriggerEditor()
   trigger.Texture = icon ~= "" and icon or nil
   FBT.RegisterTriggers()
   editor:Hide()
-  if refresh[6] then refresh[6]() end
+  Refresh()
  end
  return editor
 end
@@ -805,9 +904,10 @@ end
 
 local function BuildTriggers(page)
  local rows, pager, keys = {}, nil, {}
- UI.Heading(page, "On / Message (click to edit) / Color", 28, -98)
+ layout:Section(page, true)
+ layout:Heading(page, L, "On / Message (click to edit) / Color")
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row("FBT_TriggerRow" .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
+  local row = UI.Row("FBT_TriggerRow" .. i, page, 0, 0, WIDTH - 56)
   local function Trigger() return Profile().Triggers[row.key] end
   row.show = UI.Switch("FBT_TriggerRow" .. i .. "Show", row, "", "Turn this trigger on or off.", 4, -5, function(value)
    Trigger().EventSettings.Show = value
@@ -816,37 +916,51 @@ local function BuildTriggers(page)
   row.message = MessageButton("FBT_TriggerRow" .. i .. "Message", row, 40, 230, function()
    EditInline(row.message, Trigger().EventSettings.Message, function(text)
     Trigger().EventSettings.Message = text
-    refresh[6]()
+    Refresh()
    end)
   end)
   UI.Tooltip(row.message, "%1 shows the health or mana amount.")
   row.swatch = Swatch("FBT_TriggerRow" .. i .. "Color", row, function()
    PickColor(row.swatch, Trigger().EventSettings.FontSettings.Color)
   end)
-  row.swatch:SetPoint("LEFT", row, "LEFT", 278, 0)
   row.sticky = UI.Button("FBT_TriggerRow" .. i .. "Sticky", row, "Sticky", 300, -2, 52, function()
    Trigger().EventSettings.IsSticky = not Trigger().EventSettings.IsSticky
-   refresh[6]()
+   Refresh()
   end, {ghost = true})
-  UI.Button("FBT_TriggerRow" .. i .. "Font", row, "Font", 356, -2, 44, function()
+  row.font = UI.Button("FBT_TriggerRow" .. i .. "Font", row, "Font", 356, -2, 44, function()
    local settings = Trigger().EventSettings.FontSettings
    local chain = AreaChain("Notification")
    table.insert(chain, 1, settings)
    EditFonts({title = Trigger().EventSettings.Message, own = {Normal = settings.Normal}, chain = chain, inherit = true})
   end, {ghost = true})
-  UI.Button("FBT_TriggerRow" .. i .. "Edit", row, "Edit", 404, -2, 50, function()
+  row.edit = UI.Button("FBT_TriggerRow" .. i .. "Edit", row, "Edit", 404, -2, 50, function()
    Options.EditTrigger(row.key)
   end, {ghost = true})
-  local delete = UI.Button("FBT_TriggerRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
+  row.delete = UI.Button("FBT_TriggerRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
    Profile().Triggers[row.key] = nil
    FBT.RegisterTriggers()
-   refresh[6]()
+   Refresh()
   end, {ghost = true})
-  UI.Tooltip(delete, "Delete this trigger.")
+  UI.Tooltip(row.delete, "Delete this trigger.")
   rows[i] = row
  end
- pager = Pager("FBT_TriggerPager", page, function(step) pager.page = pager.page + step; refresh[6]() end)
- local add = UI.Button("FBT_TriggerAdd", page, "Add trigger", 0, 0, 140, function()
+ -- One line in the window; narrower, the color and buttons on a second line.
+ ListBlock(page, rows, function(row, wide, width)
+  row:SetHeight(wide and 26 or 52)
+  Move(row.delete, row, width - 32, -2)
+  if wide then
+   row.message:SetWidth(230)
+   Move(row.swatch, row, 278, -5); Move(row.sticky, row, 300, -2)
+   Move(row.font, row, 356, -2); Move(row.edit, row, 404, -2)
+   return 26
+  end
+  row.message:SetWidth(width - 76)
+  Move(row.swatch, row, 44, -31); Move(row.sticky, row, 68, -28)
+  Move(row.font, row, 124, -28); Move(row.edit, row, 172, -28)
+  return 52
+ end)
+ pager = Pager("FBT_TriggerPager", page, function(step) pager.page = pager.page + step; Refresh() end)
+ layout:Footer(page, UI.Button("FBT_TriggerAdd", page, "Add trigger", 0, 0, 140, function()
   local n = 1
   while Profile().Triggers["MSBT_TRIGGER_CUSTOM" .. n] do n = n + 1 end
   Profile().Triggers["MSBT_TRIGGER_CUSTOM" .. n] = {
@@ -855,10 +969,9 @@ local function BuildTriggers(page)
    TriggerSettings = {TriggerType = 1, Threshold = 40},
   }
   FBT.RegisterTriggers()
-  refresh[6]()
+  Refresh()
   Options.EditTrigger("MSBT_TRIGGER_CUSTOM" .. n)
- end)
- add:ClearAllPoints(); add:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 28, 18)
+ end), LEFT)
 
  return function()
   keys = SortedKeys(Profile().Triggers)
@@ -886,9 +999,10 @@ end
 
 local function BuildFilters(page)
  local rows, pager = {}, nil
- UI.Heading(page, "Hide messages that contain", 28, -98)
+ layout:Section(page, true)
+ layout:Heading(page, L, "Hide messages that contain")
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row("FBT_FilterRow" .. i, page, 28, -118 - (i - 1) * 28, WIDTH - 56)
+  local row = UI.Row("FBT_FilterRow" .. i, page, 0, 0, WIDTH - 56)
   local function Filter() return Profile().Suppressions[row.key] end
   row.show = UI.Switch("FBT_FilterRow" .. i .. "On", row, "", "Turn this filter on or off.", 4, -5, function(value)
    Filter().Enabled = value
@@ -896,24 +1010,29 @@ local function BuildFilters(page)
   row.pattern = MessageButton("FBT_FilterRow" .. i .. "Pattern", row, 40, 460, function()
    EditInline(row.pattern, Filter().SearchPattern, function(text)
     Filter().SearchPattern = text
-    refresh[7]()
+    Refresh()
    end)
   end)
   UI.Tooltip(row.pattern, "Hides every message whose text or spell name contains this text.")
-  UI.Button("FBT_FilterRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
+  row.delete = UI.Button("FBT_FilterRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
    Profile().Suppressions[row.key] = nil
-   refresh[7]()
+   Refresh()
   end, {ghost = true})
   rows[i] = row
  end
- pager = Pager("FBT_FilterPager", page, function(step) pager.page = pager.page + step; refresh[7]() end)
- local add = UI.Button("FBT_FilterAdd", page, "Add filter", 0, 0, 140, function()
+ -- One line at every width: the text takes what the switch and X leave.
+ ListBlock(page, rows, function(row, wide, width)
+  row.pattern:SetWidth(wide and 460 or width - 76)
+  Move(row.delete, row, width - 32, -2)
+  return 26
+ end)
+ pager = Pager("FBT_FilterPager", page, function(step) pager.page = pager.page + step; Refresh() end)
+ layout:Footer(page, UI.Button("FBT_FilterAdd", page, "Add filter", 0, 0, 140, function()
   local n = 1
   while Profile().Suppressions["MSBT_SUPPRESSION_CUSTOM" .. n] do n = n + 1 end
   Profile().Suppressions["MSBT_SUPPRESSION_CUSTOM" .. n] = {Enabled = true, SearchPattern = "New filter"}
-  refresh[7]()
- end)
- add:ClearAllPoints(); add:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 28, 18)
+  Refresh()
+ end), LEFT)
 
  return function()
   local keys = SortedKeys(Profile().Suppressions)
@@ -951,14 +1070,14 @@ end
 
 local function BuildProfiles(page)
  local rows, pager = {}, nil
- UI.Heading(page, "Profiles (shared by your characters)", 28, -98)
+ local listHeading = UI.Heading(page, "Profiles (shared by your characters)", 0, 0)
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row("FBT_ProfileRow" .. i, page, 28, -118 - (i - 1) * 28, 300)
+  local row = UI.Row("FBT_ProfileRow" .. i, page, 0, 0, 300)
   row.radio = UI.Radio("FBT_ProfileRow" .. i .. "Use", row)
   row.radio:SetPoint("LEFT", row, "LEFT", 4, 0)
   row.radio:SetScript("OnClick", function()
    Options.LoadProfile(row.name)
-   refresh[8]()
+   Refresh()
   end)
   row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   row.label:SetPoint("LEFT", row.radio, "RIGHT", 8, 0)
@@ -967,29 +1086,51 @@ local function BuildProfiles(page)
    Options.RetireColorPicker(true)
    FBT.DeleteProfile(row.name)
    AfterProfileChange()
-   refresh[8]()
+   Refresh()
   end, {ghost = true})
   rows[i] = row
  end
- pager = Pager("FBT_ProfilePager", page, function(step) pager.page = pager.page + step; refresh[8]() end)
+ pager = Pager("FBT_ProfilePager", page, function(step) pager.page = pager.page + step; Refresh() end)
 
- UI.Heading(page, "New profile", 352, -98)
- local name = TextBox("FBT_ProfileName", page, 352, -118, 172)
- UI.Button("FBT_ProfileCreate", page, "Create", 352, -146, 172, function()
+ local newHeading = UI.Heading(page, "New profile", 0, 0)
+ local name = TextBox("FBT_ProfileName", page, 0, 0, 172)
+ local create = UI.Button("FBT_ProfileCreate", page, "Create", 0, 0, 172, function()
   local text = name:GetText()
   if text ~= "" and not FBT.ProfileExists(text) then
    FBT.CreateProfile(text)
    name:SetText("")
-   refresh[8]()
+   Refresh()
   end
  end)
- UI.Label(page, "New profiles start from the defaults.", 352, -174, "GameFontDisableSmall")
- UI.Button("FBT_ProfileReset", page, "Reset this profile", 352, -210, 172, function()
+ local note = UI.Label(page, "New profiles start from the defaults.", 0, 0, "GameFontDisableSmall")
+ local reset = UI.Button("FBT_ProfileReset", page, "Reset this profile", 0, 0, 172, function()
   Options.RetireColorPicker(true)
   FBT.ResetProfile(FostercareBattleTextDB.CurrentProfile, true)
   AfterProfileChange()
-  refresh[8]()
+  Refresh()
  end)
+ -- The list 300 wide with "New profile" beside it in the window; under it narrower.
+ layout:Section(page, true)
+ layout:Add(page, L, {place = function(x, y, width)
+  local wide, top = width >= WIDE, y
+  Move(listHeading, page, x, y)
+  y = y - 20
+  for _, row in ipairs(rows) do
+   if wide or row:IsShown() then
+    local rowWidth = wide and 300 or width
+    Move(row, page, x, y); row:SetWidth(rowWidth)
+    Move(row.delete, row, rowWidth - 64, -2)
+    y = y - 28
+   end
+  end
+  local newX, newY = x + 324, top
+  if not wide then newX, newY = x, y - 14 end
+  Move(newHeading, page, newX, newY); Move(name, page, newX, newY - 20)
+  Move(create, page, newX, newY - 48); Move(note, page, newX, newY - 76)
+  Move(reset, page, newX, newY - 112)
+  if wide then return top - y end
+  return top - newY + 136
+ end})
 
  return function()
   local names = SortedKeys(FostercareBattleTextDB.Profiles)
@@ -1010,75 +1151,70 @@ local function BuildProfiles(page)
 end
 
 -------------------------------------------------------------------------------------
--- Window.
+-- Window and AddOn Options.
 -------------------------------------------------------------------------------------
 
 local TABS = {
  {label = "General", height = 410, build = BuildGeneral},
- {label = "Areas", height = 410, build = BuildAreas},
- {label = "Incoming", height = 460, build = function(page) return BuildEvents(page, "Incoming", 3) end},
- {label = "Outgoing", height = 460, build = function(page) return BuildEvents(page, "Outgoing", 4) end},
- {label = "Notices", height = 460, build = function(page) return BuildEvents(page, "Notification", 5) end},
+ {label = "Areas", height = 430, build = BuildAreas},
+ {label = "Incoming", height = 460, build = function(page) return BuildEvents(page, "Incoming") end},
+ {label = "Outgoing", height = 460, build = function(page) return BuildEvents(page, "Outgoing") end},
+ {label = "Notices", height = 460, build = function(page) return BuildEvents(page, "Notification") end},
  {label = "Triggers", height = 460, build = BuildTriggers},
  {label = "Filters", height = 460, build = BuildFilters},
  {label = "Profiles", height = 460, build = BuildProfiles},
 }
 
-local function Create()
- panel = UI.Window("FBT_Options", "Fostercare Battle Text", WIDTH, 410, FBT.VERSION)
- local pages
- pages, ShowTab = UI.Tabs(panel, "FBT_", TABS, function(index)
-  panel.tab = index
-  refresh[index]()
- end)
- for i, tab in ipairs(TABS) do refresh[i] = tab.build(pages[i]) end
-
- inlineEdit = TextBox("FBT_InlineEdit", panel, 0, 0, 200, function(text)
-  inlineEdit:Hide()
-  if inlineAccept then inlineAccept(text) end
- end)
- inlineEdit:SetScript("OnEscapePressed", function() inlineEdit:Hide() end)
- inlineEdit:SetScript("OnEditFocusLost", function() inlineEdit:Hide() end)
+-- Keep the chosen color; close FBT's own editors and movers.
+local function CloseExtras()
+ Options.RetireColorPicker(false)
  inlineEdit:Hide()
+ if fontEditor then fontEditor:Hide() end
+ if triggerEditor then triggerEditor:Hide() end
+ if moversShown then ShowMovers(false) end
+end
 
- panel:SetScript("OnShow", function() ShowTab(panel.tab or 1) end)
- panel:SetScript("OnHide", function()
-  -- Keep the chosen color, close FBT's own editors and movers.
-  Options.RetireColorPicker(false)
-  inlineEdit:Hide()
-  if fontEditor then fontEditor:Hide() end
-  if triggerEditor then triggerEditor:Hide() end
-  if moversShown then ShowMovers(false) end
- end)
+panel = UI.Window("FBT_Options", "Fostercare Battle Text", WIDTH, 410, FBT.VERSION)
+local pages
+pages, ShowTab = UI.Tabs(panel, "FBT_", TABS, function(index)
+ tab = index
+ Refresh()
+end)
+for i, page in ipairs(pages) do refresh[i] = TABS[i].build(page) end
+
+inlineEdit = TextBox("FBT_InlineEdit", panel, 0, 0, 200, function(text)
+ inlineEdit:Hide()
+ if inlineAccept then inlineAccept(text) end
+end)
+inlineEdit:SetScript("OnEscapePressed", function() inlineEdit:Hide() end)
+inlineEdit:SetScript("OnEditFocusLost", function() inlineEdit:Hide() end)
+inlineEdit:Hide()
+
+-- A page back from AddOn Options is hidden even when its tab is the active one.
+panel:SetScript("OnShow", function() ShowTab(tab); pages[tab]:Show() end)
+panel:SetScript("OnHide", CloseExtras)
+
+-- Game Menu > AddOn Options > FostercareBattleText (ClassicAPI): the same eight
+-- pages, one category each, in one column (ForgeLayout.lua).
+book = UI.Book({
+ name = addonName, text = "Open a page under " .. addonName .. ", or type /fbt for the settings window.",
+ open = function() Options.ShowTab(1) end,
+ panel = panel, pages = pages, tabs = TABS, layout = layout, refresh = Refresh,
+ select = function(index) tab = index end,
+ hide = CloseExtras,
+})
+
+local function CloseAddOnOptions()
+ if InterfaceOptionsFrame:IsShown() then InterfaceOptionsFrame:Hide() end
 end
 
 function Options.Toggle()
- if not panel then Create() end
- if panel:IsShown() then panel:Hide() else panel:Show() end
+ if panel:IsShown() then panel:Hide() else CloseAddOnOptions(); panel:Show() end
 end
 
--- Opens a tab (1-8); used by tests and the slash command.
+-- Opens a tab (1-8); used by tests and the AddOn Options entry.
 function Options.ShowTab(index)
- if not panel then Create() end
- panel:Show()
- ShowTab(index)
+ CloseAddOnOptions()
+ tab = index
+ if panel:IsShown() then ShowTab(index) else panel:Show() end
 end
-
--- Game Menu > AddOn Options > FostercareBattleText (ClassicAPI).
-local entry = CreateFrame("Frame", "FBTOptionsEntry")
-entry.name = addonName
-local entryTitle = entry:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-entryTitle:SetPoint("TOPLEFT", entry, "TOPLEFT", 16, -16)
-entryTitle:SetText(addonName)
-local entryText = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-entryText:SetPoint("TOPLEFT", entryTitle, "BOTTOMLEFT", 0, -8)
-entryText:SetWidth(380)
-entryText:SetJustifyH("LEFT")
-entryText:SetText("Scrolling combat text. Type /fbt to open the settings at any time.")
-local entryOpen = UI.Button("FBTOptionsEntryOpen", entry, "Open settings", 16, -80, 172, function()
- if InterfaceOptionsFrame and InterfaceOptionsFrame:IsShown() then InterfaceOptionsFrame:Hide() end
- if GameMenuFrame and GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
- Options.ShowTab(1)
-end)
-UI.Select(entryOpen, true)
-InterfaceOptions_AddCategory(entry)
