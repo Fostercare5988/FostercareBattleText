@@ -6,7 +6,7 @@ heals, misses, absorbs, critical hits, resource gains and configurable alerts.
 ## Requirements
 
 - World of Warcraft 1.12.1 (build 5875).
-- ClassicAPI. SuperWoW, NamPower and UnitXP are not needed.
+- ClassicAPI 1.20.6 or newer.
 
 ## Install or update
 
