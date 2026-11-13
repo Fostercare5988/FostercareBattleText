@@ -15,7 +15,8 @@ Turn the battle text on or off (while it is off, the game shows its own damage
 numbers), and choose partial effects (absorbed, blocked, resisted, crushing and
 glancing amounts, and overhealing), sticky critical hits, all mana gains (regeneration and
 drinking included, in every druid form), the game's own damage numbers, the low
-health, low mana and frost-resist sounds, and the scroll speed.
+health, low mana and frost-resist sounds, and the scroll speed. The mana switches
+show only on a character with mana, and frost resists only on a mage.
 **Fonts** sets the master font, outline and size for normal and critical text;
 areas and events inherit them unless you change them. **Game damage font**
 changes the game's own damage numbers after you log in again.

@@ -469,19 +469,29 @@ local function BuildGeneral(page)
   Refresh()
  end)
  layout:Switch(page, L, enabled)
- local function ProfileSwitch(column, key, text, tip, after)
-  switches[key] = UI.Switch("FBT_" .. key, page, text, tip, 0, 0, function(value)
+ -- shown: a switch that only some characters can use. The others do not see
+ -- it, and it takes no room (so it must not be first under a heading).
+ local function ProfileSwitch(column, key, text, tip, after, shown)
+  local switch = UI.Switch("FBT_" .. key, page, text, tip, 0, 0, function(value)
    Profile()[key] = value
    if after then after(value) end
   end)
-  layout:Switch(page, column, switches[key], {before = ROW_GAP})
+  switches[key] = switch
+  if not shown then return layout:Switch(page, column, switch, {before = ROW_GAP}) end
+  layout:Add(page, column, {before = ROW_GAP, place = function(x, y)
+   if not shown() then switch:Hide(); return -ROW_GAP end
+   switch:Show(); Move(switch, page, x, y - 2)
+   return 26
+  end})
  end
+ local function HasMana() return UnitPowerMax("player", 0) > 0 end
+ local function IsMage() local _, class = UnitClass("player"); return class == "MAGE" end
  ProfileSwitch(L, "ShowPartialEffects", "Partial effects", "Add absorbed, blocked, resisted, crushing and glancing amounts, and overhealing.")
  ProfileSwitch(L, "UseStickyCrits", "Sticky criticals", "Critical hits pop in the middle of the area instead of scrolling.")
  ProfileSwitch(L, "ShowAllManaGains", "All mana gains", "Show every mana increase, including regeneration and drinking.", function()
   -- Mana is observed only while something reads it.
   Combat.UpdateUnitEvents()
- end)
+ end, HasMana)
  local gameDamage = UI.Switch("FBT_ShowGameDamage", page, "Game damage text", "Keep the game's own damage numbers above enemies.", 0, 0, function(value)
   FBT.SetOptionShowGameDamage(value)
  end)
@@ -489,8 +499,8 @@ local function BuildGeneral(page)
 
  layout:Heading(page, R, "Sounds")
  ProfileSwitch(R, "LowHealthSound", "Low health", "Play a sound when a low health trigger fires.")
- ProfileSwitch(R, "LowManaSound", "Low mana", "Play a sound when a low mana trigger fires.")
- ProfileSwitch(R, "ResistSound", "Frost resists", "Play a sound when your Cone of Cold or Frost Nova is resisted.")
+ ProfileSwitch(R, "LowManaSound", "Low mana", "Play a sound when a low mana trigger fires.", nil, HasMana)
+ ProfileSwitch(R, "ResistSound", "Frost resists", "Play a sound when your Cone of Cold or Frost Nova is resisted.", nil, IsMage)
 
  layout:Section(page)
  local speed = UI.Slider("FBT_AnimationStep", page, "Scroll speed", 0, 0, SIDE, 1, 5, 0.5, function(value)
