@@ -65,6 +65,7 @@ Combat.PARTIALACTIONTYPE_BLOCK = 2
 Combat.PARTIALACTIONTYPE_RESIST = 3
 Combat.PARTIALACTIONTYPE_CRUSHING = 5
 Combat.PARTIALACTIONTYPE_GLANCING = 6
+Combat.PARTIALACTIONTYPE_OVERHEAL = 7
 
 Combat.HEALTYPE_NORMAL = 1
 Combat.HEALTYPE_CRIT = 2
@@ -354,15 +355,24 @@ handlers.ENVIRONMENTAL_DAMAGE = function(sourceGUID, destGUID)
  Send(data)
 end
 
--- Heals: amount, overhealing, absorbed, critical.
+-- Heals: amount, overhealing, absorbed, critical. The amount shown is what the
+-- heal healed, and the overheal follows it; a heal-over-time tick that healed
+-- nothing is not shown. Overhealing is 0 for units out of view or outside
+-- your group (their health comes as a percentage).
 local function Heal(sourceGUID, destGUID)
  local directionType = Direction(sourceGUID, destGUID)
  if not directionType then return end
+ local periodic = cSubevent == "SPELL_PERIODIC_HEAL"
+ local overheal = v16 or 0
+ local amount = (v15 or 0) - overheal
+ if amount < 0 then amount = 0 end
+ if periodic and amount == 0 and overheal > 0 then return end
  local data = NewEvent(Combat.EVENTTYPE_HEAL)
  data.DirectionType = directionType
- data.HealType = cSubevent == "SPELL_PERIODIC_HEAL" and Combat.HEALTYPE_OVER_TIME or v18 and Combat.HEALTYPE_CRIT or Combat.HEALTYPE_NORMAL
- data.Amount, data.EffectName, data.Name = v15 or 0, v13, OtherName(directionType)
+ data.HealType = periodic and Combat.HEALTYPE_OVER_TIME or v18 and Combat.HEALTYPE_CRIT or Combat.HEALTYPE_NORMAL
+ data.Amount, data.EffectName, data.Name = amount, v13, OtherName(directionType)
  data.SpellId, data.IsCrit = v12, v18 and true or nil
+ if overheal > 0 then data.PartialActionType, data.PartialAmount = Combat.PARTIALACTIONTYPE_OVERHEAL, overheal end
  Identity(data, sourceGUID, destGUID)
  Send(data)
 end

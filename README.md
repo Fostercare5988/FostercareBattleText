@@ -6,7 +6,7 @@ heals, misses, absorbs, critical hits, resource gains and configurable alerts.
 ## Requirements
 
 - World of Warcraft 1.12.1 (build 5875).
-- ClassicAPI 1.20.6 or newer.
+- ClassicAPI.
 
 ## Install or update
 
@@ -27,8 +27,8 @@ Commands: `/fbt`, `/fbt enable`, `/fbt disable`, `/fbt version`, `/fbt reset`.
 
 ## Healing and other displays
 
-All combat text comes from ClassicAPI's combat log; heals show the total, as the
-log reports no overheal. Reputation comes from its `FACTION_STANDING_CHANGED`
+All combat text comes from ClassicAPI's combat log; heals show what they healed,
+with the overheal after it. Reputation comes from its `FACTION_STANDING_CHANGED`
 event, mana from `UNIT_POWER_UPDATE` (a druid's mana in every form).
 
 Game damage text controls the native damage numbers above enemies. Other addons

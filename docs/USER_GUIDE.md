@@ -2,8 +2,7 @@
 
 Type `/fbt` to open the settings (`/msbt` still works). The tabs are **General,
 Areas, Incoming, Outgoing, Notices, Triggers, Filters and Profiles**. Every
-change applies at once and is saved in `FostercareBattleTextDB` when you log out
-or reload. The close button or Escape closes the window.
+change applies at once and is saved when you log out or reload. The close button or Escape closes the window.
 
 The same eight pages are under **FostercareBattleText** in Game Menu > AddOn
 Options, one column each; scroll down for the rest of a page. Its first entry
@@ -14,7 +13,7 @@ one place at a time.
 
 Turn the battle text on or off (while it is off, the game shows its own damage
 numbers), and choose partial effects (absorbed, blocked, resisted, crushing and
-glancing amounts), sticky critical hits, all mana gains (regeneration and
+glancing amounts, and overhealing), sticky critical hits, all mana gains (regeneration and
 drinking included, in every druid form), the game's own damage numbers, the low
 health, low mana and frost-resist sounds, and the scroll speed.
 **Fonts** sets the master font, outline and size for normal and critical text;
@@ -44,8 +43,10 @@ in the middle of the area instead of scrolling it. On the Enter Combat and Leave
 Combat rows, **Icon** adds crossed swords (twice the text size): red beside
 "+Combat", green beside "-Combat". The arrows at the bottom turn the page.
 
-All combat text comes from ClassicAPI's combat log. Heals show the total; the
-log reports no overheal. A damage shield names its spell, such as Thorns, when
+All combat text comes from ClassicAPI's combat log. A heal shows what it healed,
+with the overheal after it, such as `+300 <200>`; a heal over time that heals
+nothing is not shown. The game knows the overheal only for you, your group and
+units in view; other heals show their whole amount. A damage shield names its spell, such as Thorns, when
 the game says which. Killing blows count a player kill even when you never
 targeted the player. Power Losses shows mana, rage or energy drained from you.
 Reputation changes show the faction and amount. Experience Gains shows every
@@ -76,7 +77,8 @@ deletes it, **Add filter** adds one.
 
 ## Profiles
 
-Profiles are shared by your characters. Click a profile's dot to use it.
+Profiles are shared by your characters, and each character uses its own
+choice: click a profile's dot to use it on this character.
 **Create** adds a profile with the default settings, **Delete** removes one (not
 Default), and **Reset this profile** puts the current profile back to the
 defaults, triggers and filters included. `/fbt reset` does the same.

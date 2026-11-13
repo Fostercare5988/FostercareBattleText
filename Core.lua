@@ -200,6 +200,7 @@ local function PartialText(combatEvent)
  elseif kind == Combat.PARTIALACTIONTYPE_RESIST then return "|cff81007F|h" .. string_format(RESIST_TRAILER, amount) .. "|h|r"
  elseif kind == Combat.PARTIALACTIONTYPE_CRUSHING then return "|cff7D0000|h" .. CRUSHING_TRAILER .. "|h|r"
  elseif kind == Combat.PARTIALACTIONTYPE_GLANCING then return "|cffFA0000|h" .. GLANCING_TRAILER .. "|h|r"
+ elseif kind == Combat.PARTIALACTIONTYPE_OVERHEAL then return "|cff00B47F|h <" .. amount .. ">|h|r"
  end
 end
 
@@ -753,9 +754,14 @@ function FBT.RegisterTriggers()
  Combat.UpdateUnitEvents()
 end
 
--- Points everything at the saved current profile.
+-- The name of the profile this character uses.
+function FBT.CurrentProfileName()
+ return FostercareBattleTextCharDB.CurrentProfile
+end
+
+-- Points everything at this character's profile.
 local function UseProfile()
- FBT.CurrentProfile = FostercareBattleTextDB.Profiles[FostercareBattleTextDB.CurrentProfile]
+ FBT.CurrentProfile = FostercareBattleTextDB.Profiles[FBT.CurrentProfileName()]
  for name, area in pairs(scrollAreas) do area.DisplaySettings = FBT.CurrentProfile.DisplaySettings[name] end
  FBT.RepositionAnimationFrames()
  FBT.RegisterTriggers()
@@ -795,7 +801,7 @@ end
 
 function FBT.ResetProfile(name, showOutput)
  if not FBT.ProfileExists(name) then return end
- local current = name == FostercareBattleTextDB.CurrentProfile
+ local current = name == FBT.CurrentProfileName()
  if current then FBT.ClearPendingEvents() end
  FostercareBattleTextDB.Profiles[name] = FBT.CopyTable(FBT.DEFAULT_CONFIG)
  if current then UseProfile() end
@@ -805,7 +811,7 @@ end
 function FBT.SelectProfile(name)
  if not FBT.ProfileExists(name) then return end
  FBT.ClearPendingEvents()
- FostercareBattleTextDB.CurrentProfile = name
+ FostercareBattleTextCharDB.CurrentProfile = name
  UseProfile()
 end
 
@@ -816,7 +822,7 @@ end
 
 function FBT.DeleteProfile(name)
  if name == FBT.DEFAULT_PROFILE_NAME or not FBT.ProfileExists(name) then return end
- if name == FostercareBattleTextDB.CurrentProfile then FBT.SelectProfile(FBT.DEFAULT_PROFILE_NAME) end
+ if name == FBT.CurrentProfileName() then FBT.SelectProfile(FBT.DEFAULT_PROFILE_NAME) end
  FostercareBattleTextDB.Profiles[name] = nil
 end
 
@@ -854,8 +860,14 @@ local function Init()
  local db = FostercareBattleTextDB
  if type(db) ~= "table" then db = {UserDisabled = false}; FostercareBattleTextDB = db end
  if type(db.Profiles) ~= "table" then db.Profiles = {} end
- if not db.CurrentProfile or not db.Profiles[db.CurrentProfile] then db.CurrentProfile = FBT.DEFAULT_PROFILE_NAME end
- if not db.Profiles[db.CurrentProfile] then db.Profiles[db.CurrentProfile] = FBT.CopyTable(FBT.DEFAULT_CONFIG) end
+ local char = FostercareBattleTextCharDB
+ if type(char) ~= "table" then char = {}; FostercareBattleTextCharDB = char end
+ -- 2.1.0 saved one choice for the account: it becomes this character's.
+ -- Both saved files held "Default" on 2026-11-13, so other characters lose nothing.
+ char.CurrentProfile = char.CurrentProfile or db.CurrentProfile
+ db.CurrentProfile = nil
+ if not (char.CurrentProfile and db.Profiles[char.CurrentProfile]) then char.CurrentProfile = FBT.DEFAULT_PROFILE_NAME end
+ if not db.Profiles[char.CurrentProfile] then db.Profiles[char.CurrentProfile] = FBT.CopyTable(FBT.DEFAULT_CONFIG) end
  FBT.UpdateProfiles()
  Combat.Init()
  UseProfile()
@@ -881,7 +893,7 @@ end)
 -------------------------------------------------------------------------------------
 
 local COMMANDS = {
- reset = function() FBT.ResetProfile(FostercareBattleTextDB.CurrentProfile, true) end,
+ reset = function() FBT.ResetProfile(FBT.CurrentProfileName(), true) end,
  disable = function() FBT.SetOptionUserDisabled(true); FBT.Print("Battle text is off. /fbt enable turns it on.", 1, 1, 1) end,
  enable = function() FBT.SetOptionUserDisabled(false); FBT.Print("Battle text is on.", 1, 1, 1) end,
  version = function() FBT.Print("v" .. FBT.VERSION, 1, 1, 1) end,

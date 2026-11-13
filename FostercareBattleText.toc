@@ -5,6 +5,7 @@
 ## X-Maintainer: Fostercare5988
 ## Version: 2.1.0
 ## SavedVariables: FostercareBattleTextDB
+## SavedVariablesPerCharacter: FostercareBattleTextCharDB
 ## X-Category: Combat
 ## X-Website: https://github.com/Fostercare5988
 

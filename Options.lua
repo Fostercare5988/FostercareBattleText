@@ -31,8 +31,8 @@ local EVENTS = {
   {Type="MSBT_EVENTTYPE_INCOMING_SPELL_IMMUNE", Label="Ability/Spell Immunes", Tip="Show incoming spell and ability damage you are immune to.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
   {Type="MSBT_EVENTTYPE_INCOMING_SPELL_REFLECT", Label="Ability/Spell Reflects", Tip="Show incoming spell and ability damage you reflected.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
   {Type="MSBT_EVENTTYPE_INCOMING_SPELL_EVADE", Label="Ability/Spell Evades", Tip="Show incoming spell and ability evades.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
-  {Type="MSBT_EVENTTYPE_INCOMING_HEAL", Label="Heals", Tip="Show incoming heals.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
-  {Type="MSBT_EVENTTYPE_INCOMING_HOT", Label="Heals Over Time", Tip="Show incoming heals over time.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_HEAL", Label="Heals", Tip="Show incoming heals.", Codes="%a - Healing taken, without overhealing.\n%n - Name of the healer.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_HOT", Label="Heals Over Time", Tip="Show incoming heals over time.", Codes="%a - Healing taken, without overhealing.\n%n - Name of the healer.\n%s - Name of the spell."},
   {Type="MSBT_EVENTTYPE_INCOMING_ENVIRONMENTAL", Label="Environmental Damage", Tip="Show environmental (falling, drowning, lava, etc...) damage.", Codes="%a - Amount of damage taken.\n%s - Name of the source of the damage (falling, drowning, lava, etc...)"},
   {Type="MSBT_EVENTTYPE_INCOMING_PET_DAMAGE", Label="Pet Melee Damage", Tip="Show incoming melee damage on your pet.", Codes="%a - Amount of damage taken.\n%n - Name of the attacker."},
   {Type="MSBT_EVENTTYPE_INCOMING_PET_MISS", Label="Pet Melee Misses", Tip="Show incoming melee misses on your pet.", Codes="%n - Name of the attacker."},
@@ -53,8 +53,8 @@ local EVENTS = {
   {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_IMMUNE", Label="Pet Ability/Spell Immunes", Tip="Show incoming spell and ability damage your pet is immune to.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
   {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_EVADE", Label="Pet Ability/Spell Evades", Tip="Show incoming spell and ability evades on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
   {Type="MSBT_EVENTTYPE_INCOMING_PET_SPELL_REFLECT", Label="Pet Ability/Spell Reflects", Tip="Show incoming spell and ability reflects on your pet.", Codes="%n - Name of the attacker.\n%s - Name of the spell or ability."},
-  {Type="MSBT_EVENTTYPE_INCOMING_PET_HEAL", Label="Pet Heals", Tip="Show incoming heals on your pet.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
-  {Type="MSBT_EVENTTYPE_INCOMING_PET_HOT", Label="Pet Heals Over Time", Tip="Show incoming heals over time on your pet.", Codes="%a - Amount of healing taken.\n%n - Name of the healer.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_HEAL", Label="Pet Heals", Tip="Show incoming heals on your pet.", Codes="%a - Healing taken, without overhealing.\n%n - Name of the healer.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_INCOMING_PET_HOT", Label="Pet Heals Over Time", Tip="Show incoming heals over time on your pet.", Codes="%a - Healing taken, without overhealing.\n%n - Name of the healer.\n%s - Name of the spell."},
  },
  Outgoing = {
   {Type="MSBT_EVENTTYPE_OUTGOING_DAMAGE", Label="Melee Damage", Tip="Show outgoing melee damage.", Codes="%a - Amount of damage done.\n%n - Name of the attacked unit."},
@@ -76,8 +76,8 @@ local EVENTS = {
   {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_IMMUNE", Label="Ability/Spell Immunes", Tip="Show outgoing spell and ability damage the enemy is immune to.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
   {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_REFLECT", Label="Ability/Spell Reflects", Tip="Show outgoing spell and ability damage reflected back to you.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
   {Type="MSBT_EVENTTYPE_OUTGOING_SPELL_EVADE", Label="Ability/Spell Evades", Tip="Show outgoing spell and ability evades.", Codes="%n - Name of the attacked unit.\n%s - Name of the spell or ability."},
-  {Type="MSBT_EVENTTYPE_OUTGOING_HEAL", Label="Heals", Tip="Show outgoing heals.", Codes="%a - Amount of healing done.\n%n - Name of the healed unit.\n%s - Name of the spell."},
-  {Type="MSBT_EVENTTYPE_OUTGOING_HOT", Label="Heals Over Time", Tip="Show outgoing heals over time.", Codes="%a - Amount of healing done.\n%n - Name of the healed unit.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_HEAL", Label="Heals", Tip="Show outgoing heals.", Codes="%a - Healing done, without overhealing.\n%n - Name of the healed unit.\n%s - Name of the spell."},
+  {Type="MSBT_EVENTTYPE_OUTGOING_HOT", Label="Heals Over Time", Tip="Show outgoing heals over time.", Codes="%a - Healing done, without overhealing.\n%n - Name of the healed unit.\n%s - Name of the spell."},
   {Type="MSBT_EVENTTYPE_OUTGOING_PET_DAMAGE", Label="Pet Melee Damage", Tip="Show your pet's outgoing melee damage.", Codes="%a - Amount of damage done.\n%n - Name of the attacked unit."},
   {Type="MSBT_EVENTTYPE_OUTGOING_PET_MISS", Label="Pet Melee Misses", Tip="Show your pet's outgoing melee misses.", Codes="%n - Name of the attacked unit."},
   {Type="MSBT_EVENTTYPE_OUTGOING_PET_DODGE", Label="Pet Melee Dodges", Tip="Show your pet's outgoing melee dodges.", Codes="%n - Name of the attacked unit."},
@@ -472,7 +472,7 @@ local function BuildGeneral(page)
   end)
   layout:Switch(page, column, switches[key], {before = ROW_GAP})
  end
- ProfileSwitch(L, "ShowPartialEffects", "Partial effects", "Add absorbed, blocked, resisted, crushing and glancing amounts.")
+ ProfileSwitch(L, "ShowPartialEffects", "Partial effects", "Add absorbed, blocked, resisted, crushing and glancing amounts, and overhealing.")
  ProfileSwitch(L, "UseStickyCrits", "Sticky criticals", "Critical hits pop in the middle of the area instead of scrolling.")
  ProfileSwitch(L, "ShowAllManaGains", "All mana gains", "Show every mana increase, including regeneration and drinking.", function()
   -- Mana is observed only while something reads it.
@@ -1083,7 +1083,7 @@ end
 
 local function BuildProfiles(page)
  local rows, pager = {}, nil
- local listHeading = UI.Heading(page, "Profiles (shared by your characters)", 0, 0)
+ local listHeading = UI.Heading(page, "Profiles (each character picks one)", 0, 0)
  for i = 1, ROWS_PER_PAGE do
   local row = UI.Row("FBT_ProfileRow" .. i, page, 0, 0, 300)
   row.radio = UI.Radio("FBT_ProfileRow" .. i .. "Use", row)
@@ -1118,7 +1118,7 @@ local function BuildProfiles(page)
  local note = UI.Label(page, "New profiles start from the defaults.", 0, 0, "GameFontDisableSmall")
  local reset = UI.Button("FBT_ProfileReset", page, "Reset this profile", 0, 0, 172, function()
   Options.RetireColorPicker(true)
-  FBT.ResetProfile(FostercareBattleTextDB.CurrentProfile, true)
+  FBT.ResetProfile(FBT.CurrentProfileName(), true)
   AfterProfileChange()
   Refresh()
  end)
@@ -1153,7 +1153,7 @@ local function BuildProfiles(page)
    if profileName then
     row.name = profileName
     row.label:SetText(profileName)
-    UI.SetCheck(row.radio, profileName == FostercareBattleTextDB.CurrentProfile)
+    UI.SetCheck(row.radio, profileName == FBT.CurrentProfileName())
     UI.SetEnabled(row.delete, profileName ~= FBT.DEFAULT_PROFILE_NAME)
     row:Show()
    else
