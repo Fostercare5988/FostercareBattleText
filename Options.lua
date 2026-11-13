@@ -315,6 +315,12 @@ local KINDS = {"Normal", "Crit"}
 local OUTLINE_LABELS = {"None", "Thin", "Thick"}
 local OUTLINE_LABELS_INHERIT = {"Inherit", "None", "Thin", "Thick"}
 
+-- The place of a font in the list; 0 for none (inherit).
+local function FontPlace(name)
+ for i, font in ipairs(FBT.AVAILABLE_FONTS) do if font.Name == name then return i end end
+ return 0
+end
+
 local function Resolve(chain, kind, field)
  for _, settings in ipairs(chain) do
   local fs = settings[kind]
@@ -331,11 +337,11 @@ local function CreateFontEditor()
   local s = {kind = kind}
   s.heading = UI.Heading(editor, kind == "Crit" and "Critical hits" or "Normal hits", 28, y)
   s.font = Cycle("FBT_Font" .. kind .. "Face", editor, 28, y - 22, 220, function(step)
-   local fs = editor.target.own[kind]
+   local fonts, fs = FBT.AVAILABLE_FONTS, editor.target.own[kind]
    local low = editor.target.inherit and 0 or 1
-   local value = (fs.FontIndex or 0) + step
-   if value > table.getn(FBT.AVAILABLE_FONTS) then value = low elseif value < low then value = table.getn(FBT.AVAILABLE_FONTS) end
-   fs.FontIndex = value
+   local value = FontPlace(fs.FontName) + step
+   if value > #fonts then value = low elseif value < low then value = #fonts end
+   fs.FontName = fonts[value] and fonts[value].Name
    editor.Changed()
   end)
   s.outlineButtons, s.SelectOutline, s.outlineTrack = UI.Segmented("FBT_Font" .. kind .. "Outline", editor,
@@ -357,7 +363,7 @@ local function CreateFontEditor()
    end, 110)
   s.size = UI.Slider("FBT_Font" .. kind .. "Size", editor, "Size", 160, y - 54, 232, 12, 64, 2, function(value)
    editor.target.own[kind].FontSize = value
-   editor.Changed(true)
+   editor.Changed()
   end)
   s.preview = editor:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   s.preview:SetPoint("TOPLEFT", editor, "TOPLEFT", 28, y - 92)
@@ -380,9 +386,8 @@ local function CreateFontEditor()
    local s, fs = editor.sections[kind], target.own[kind]
    ShowSection(s, fs ~= nil)
    if fs then
-    local index = fs.FontIndex or 0
-    local face = FBT.AVAILABLE_FONTS[index]
-    local resolved = FBT.AVAILABLE_FONTS[Resolve(target.chain, kind, "FontIndex") or 1] or FBT.AVAILABLE_FONTS[1]
+    local face = FBT.FONT_BY_NAME[fs.FontName or ""]
+    local resolved = FBT.FONT_BY_NAME[Resolve(target.chain, kind, "FontName") or ""] or FBT.FONT_BY_NAME.Friz
     s.font.text:SetText(face and face.Name or ("Inherit: " .. resolved.Name))
     if target.blizzard then
      s.outlineTrack:Hide(); s.outlineTrack3:Hide(); s.inherit:Hide(); s.inherit.label:Hide()
@@ -407,8 +412,7 @@ local function CreateFontEditor()
   editor:SetHeight(target.own.Crit and 330 or (target.blizzard and 130 or 200))
  end
 
- -- sizeOnly: a slider drag; the slider already shows the value.
- function editor.Changed(sizeOnly)
+ function editor.Changed()
   if editor.target.blizzard then FBT.ApplyGameDamageFont() end
   editor.Refresh()
  end
@@ -965,7 +969,7 @@ local function BuildTriggers(page)
   while Profile().Triggers["MSBT_TRIGGER_CUSTOM" .. n] do n = n + 1 end
   Profile().Triggers["MSBT_TRIGGER_CUSTOM" .. n] = {
    EventSettings = {Show = true, Message = "New trigger", IsSticky = false,
-    FontSettings = {Color = {r = 1, g = 0.502, b = 0.502}, Normal = {FontIndex = 0, OutlineIndex = 0, FontSize = 26}}},
+    FontSettings = {Color = {r = 1, g = 0.502, b = 0.502}, Normal = {OutlineIndex = 0, FontSize = 26}}},
    TriggerSettings = {TriggerType = 1, Threshold = 40},
   }
   FBT.RegisterTriggers()

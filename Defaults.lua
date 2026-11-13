@@ -30,8 +30,7 @@ FBT.BIG_ICONS = {
 FBT.BIG_ICON_SCALE = 2
 
 -------------------------------------------------------------------------------------
--- Fonts, outlines and alignment. Saved settings keep the index, so new fonts go
--- at the end.
+-- Fonts, outlines and alignment. Profiles save a font by its name.
 -------------------------------------------------------------------------------------
 
 local FONTS = FBT.MEDIA .. "Fonts\\"
@@ -66,7 +65,6 @@ FBT.AVAILABLE_FONTS = {
  {Name = "Myriad-Pro", Path = FONTS .. "Myriad-Pro.ttf"},
  {Name = "PT-Sans-Narrow-Bold", Path = FONTS .. "PT-Sans-Narrow-Bold.ttf"},
  {Name = "PT-Sans-Narrow-Regular", Path = FONTS .. "PT-Sans-Narrow-Regular.ttf"},
- {Name = "Simhei", Path = FONTS .. "simhei.ttf"},
  {Name = "Archangelsk", Path = FONTS .. "archangelsk.ttf"},
  {Name = "Google Sans Bold", Path = FONTS .. "GoogleSans-Bold.ttf"},
  {Name = "Google Sans Medium", Path = FONTS .. "GoogleSans-Medium.ttf"},
@@ -77,6 +75,8 @@ FBT.AVAILABLE_FONTS = {
  {Name = "Roboto", Path = FONTS .. "Roboto.ttf"},
  {Name = "Roboto Mono", Path = FONTS .. "RobotoMono.ttf"},
 }
+FBT.FONT_BY_NAME = {}
+for _, font in ipairs(FBT.AVAILABLE_FONTS) do FBT.FONT_BY_NAME[font.Name] = font end
 
 FBT.AVAILABLE_OUTLINES = {
  {Name = "None", Style = ""},
@@ -123,7 +123,8 @@ FBT.AVAILABLE_STANCES = {
 
 FBT.DEFAULT_PROFILE_NAME = "Default"
 
-local function Font(size) return {FontIndex = 0, OutlineIndex = 0, FontSize = size or 0} end
+-- No font name, outline 0 and size 0 inherit.
+local function Font(size) return {OutlineIndex = 0, FontSize = size or 0} end
 
 -- A combat event: message, color, normal size, and a crit size when the event
 -- can crit (0 inherits the size).
@@ -268,10 +269,10 @@ FBT.DEFAULT_CONFIG = {
  ResistSound = true,
  AnimationStep = 1.5,
  MasterFontSettings = {
-  Normal = {FontIndex = 37, OutlineIndex = 2, FontSize = 20},
-  Crit = {FontIndex = 37, OutlineIndex = 2, FontSize = 26},
+  Normal = {FontName = "Inter Bold", OutlineIndex = 2, FontSize = 20},
+  Crit = {FontName = "Inter Bold", OutlineIndex = 2, FontSize = 26},
  },
- BlizzardFontSettings = {Normal = {FontIndex = 6}},
+ BlizzardFontSettings = {Normal = {FontName = "Friz"}},
  DisplaySettings = {
   Incoming = {Show = true, FrameOffsets = {x = -159, y = -46}, AnimationStyle = 1, ScrollDirection = 1, ScrollHeight = 222,
    FontSettings = {Normal = Font(), Crit = Font(), TextAlignIndex = 3}},

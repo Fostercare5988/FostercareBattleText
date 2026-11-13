@@ -34,7 +34,7 @@ local STICKY_FADE_IN_TIME, STICKY_DISPLAY_TIME, STICKY_FADE_OUT_TIME = 0.15, 2, 
 local ANIMATION_SPEED = 0.02
 local SCROLL_DOWN = 2
 local STYLE_LEFT, STYLE_RIGHT = 2, 3
-local MAX_COMBO_POINTS = 5
+local FRIZ = "Fonts\\FRIZQT__.TTF"
 
 -- Damage schools: the colour of the amount and of the text, and the %t name.
 local SCHOOL_HEX = {
@@ -187,7 +187,7 @@ local function EventKey(combatEvent)
  elseif eventType == Combat.EVENTTYPE_HEAL then
   return healKeys[direction] and healKeys[direction][combatEvent.HealType == Combat.HEALTYPE_OVER_TIME and "HOT" or "HEAL"]
  end
- if combatEvent.NotificationType == Combat.NOTIFICATIONTYPE_CP_GAIN and combatEvent.Amount == MAX_COMBO_POINTS then
+ if combatEvent.NotificationType == Combat.NOTIFICATIONTYPE_CP_GAIN and combatEvent.Amount == MAX_COMBO_POINTS then -- FrameXML TargetFrame.lua
   return CP_FULL_KEY
  end
  return NOTICE_KEYS[combatEvent.NotificationType]
@@ -362,22 +362,29 @@ end
 -- Text.
 -------------------------------------------------------------------------------------
 
--- Font settings inherit event -> scroll area -> master; 0 means inherit.
+-- Font settings inherit event -> scroll area -> master; no value or 0 inherits.
+local function Own(fontSettings, kind, field)
+ local fs = fontSettings and fontSettings[kind]
+ local value = fs and fs[field]
+ if value ~= 0 then return value end
+end
+
 local function InheritedFontValue(area, eventSettings, isCrit, field)
  local kind = isCrit and "Crit" or "Normal"
- local value = eventSettings and eventSettings.FontSettings[kind] and eventSettings.FontSettings[kind][field] or 0
- if value == 0 then value = area.DisplaySettings.FontSettings[kind][field] end
- if value == 0 then value = FBT.CurrentProfile.MasterFontSettings[kind][field] end
+ local value = Own(eventSettings and eventSettings.FontSettings, kind, field)
+ if value == nil then value = Own(area.DisplaySettings.FontSettings, kind, field) end
+ if value == nil then value = Own(FBT.CurrentProfile.MasterFontSettings, kind, field) end
  return value
 end
 
 function FBT.GetFontSize(area, eventSettings, isCrit)
- return InheritedFontValue(area, eventSettings, isCrit, "FontSize")
+ return InheritedFontValue(area, eventSettings, isCrit, "FontSize") or 18
 end
 
+-- A font that left the list reads as the game's font.
 function FBT.GetFontPath(area, eventSettings, isCrit)
- local font = FBT.AVAILABLE_FONTS[InheritedFontValue(area, eventSettings, isCrit, "FontIndex")]
- return (font or FBT.AVAILABLE_FONTS[1]).Path
+ local font = FBT.FONT_BY_NAME[InheritedFontValue(area, eventSettings, isCrit, "FontName") or ""]
+ return font and font.Path or FRIZ
 end
 
 function FBT.GetFontOutline(area, eventSettings, isCrit)
@@ -548,8 +555,12 @@ function FBT.AddAnimation(message)
  local size = slot.FontSize
  if not size or size < 2 then size = 18 end
  font:ClearAllPoints()
- font:SetFont(slot.FontPath, size - 1, slot.FontOutline)
- if not font:GetFont() then font:SetFont("Fonts\\FRIZQT__.TTF", size - 1, slot.FontOutline) end
+ -- Most lines reuse the slot's font: set it only when it differs.
+ if slot.SetPath ~= slot.FontPath or slot.SetSize ~= size or slot.SetOutline ~= slot.FontOutline then
+  slot.SetPath, slot.SetSize, slot.SetOutline = slot.FontPath, size, slot.FontOutline
+  font:SetFont(slot.FontPath, size - 1, slot.FontOutline)
+  if not font:GetFont() then font:SetFont(FRIZ, size - 1, slot.FontOutline) end
+ end
  font:SetTextColor(slot.ColorR, slot.ColorG, slot.ColorB)
  font:SetText(message.Text)
  font:SetTextHeight(slot.FontSize)
@@ -742,7 +753,7 @@ end
 
 -- The game's own damage text font; the client reads it at login.
 function FBT.ApplyGameDamageFont()
- local font = FBT.AVAILABLE_FONTS[FBT.CurrentProfile.BlizzardFontSettings.Normal.FontIndex]
+ local font = FBT.FONT_BY_NAME[FBT.CurrentProfile.BlizzardFontSettings.Normal.FontName or ""]
  if font then DAMAGE_TEXT_FONT = font.Path end
 end
 
@@ -768,13 +779,40 @@ local function UseProfile()
  FBT.ApplyGameDamageFont()
 end
 
--- Settings MSBT 1.x saved that nothing reads any more, and defaults the
--- profile lacks. Triggers and filters the player deleted stay deleted.
-local RETIRED_EVENTS = {
- -- Resists and reflects are spell events; these four were never shown.
- "MSBT_EVENTTYPE_INCOMING_RESIST", "MSBT_EVENTTYPE_OUTGOING_RESIST",
- "MSBT_EVENTTYPE_INCOMING_REFLECT", "MSBT_EVENTTYPE_OUTGOING_REFLECT",
-}
+-- One sweep at load clears every saved key that no default owns, so a retired
+-- setting needs no line of its own (KNOWN_PATTERNS KP-64). It reaches the
+-- profile's keys and the keys of its tables; triggers and filters are the
+-- player's own entries and keep all of theirs.
+local DB_KEYS = {UserDisabled = true, Profiles = true}
+local function Sweep(target, defaults, deeper)
+ for key, value in pairs(target) do
+  local default = defaults[key]
+  if default == nil then
+   target[key] = nil
+  elseif deeper and type(value) == "table" and type(default) == "table" and key ~= "Triggers" and key ~= "Suppressions" then
+   Sweep(value, default, false)
+  end
+ end
+end
+
+-- 2.1.0 saved a font by its place in the list, which then had Simhei at 31:
+-- the place becomes the name, and Simhei inherits. Remove once no saved file
+-- holds a FontIndex.
+local function FontNames(t)
+ for _, value in pairs(t) do
+  if type(value) == "table" then FontNames(value) end
+ end
+ local index = t.FontIndex
+ if type(index) == "number" then
+  if index > 0 and index ~= 31 then
+   local font = FBT.AVAILABLE_FONTS[index < 31 and index or index - 1]
+   t.FontName = font and font.Name
+  end
+  t.FontIndex = nil
+ end
+end
+
+-- Defaults the profile lacks. Triggers and filters the player deleted stay deleted.
 local function FillMissing(target, defaults)
  for key, value in pairs(defaults) do
   if target[key] == nil then
@@ -785,11 +823,11 @@ local function FillMissing(target, defaults)
  end
 end
 function FBT.UpdateProfiles()
+ Sweep(FostercareBattleTextDB, DB_KEYS, false)
  for _, profile in pairs(FostercareBattleTextDB.Profiles) do
   if type(profile) == "table" then
-   if type(profile.EventSettings) == "table" then
-    for _, key in ipairs(RETIRED_EVENTS) do profile.EventSettings[key] = nil end
-   end
+   FontNames(profile)
+   Sweep(profile, FBT.DEFAULT_CONFIG, true)
    FillMissing(profile, FBT.DEFAULT_CONFIG)
   end
  end
@@ -911,19 +949,21 @@ end
 -- Public: other addons show text with FostercareBattleText.DisplayMessage.
 -------------------------------------------------------------------------------------
 
+local function Channel(value) return (value and value >= 0 and value <= 255) and value / 255 or 1 end
+
 -- message, display type (FBT.DISPLAYTYPE_*), sticky, colour as 0-255 channels,
--- font size, font index, outline index and an icon path; all but the message
--- are optional.
-function FBT.DisplayMessage(message, displayType, isSticky, colorR, colorG, colorB, fontSize, fontIndex, outlineIndex, texture)
+-- font size, font name, outline index and an icon path, in the order of
+-- MikSBT.DisplayMessage; all but the message are optional.
+function FBT.DisplayMessage(message, displayType, isSticky, colorR, colorG, colorB, fontSize, fontName, outlineIndex, texture)
  if message == nil or Disabled() then return end
  local area = displayType == FBT.DISPLAYTYPE_INCOMING and scrollAreas.Incoming
   or displayType == FBT.DISPLAYTYPE_OUTGOING and scrollAreas.Outgoing or scrollAreas.Notification
  if not area.DisplaySettings.Show then return end
- local function Channel(value) return (value and value >= 0 and value <= 255) and value / 255 or 1 end
  local event = Acquire()
  event.ScrollArea, event.IsCrit, event.IsSticky, event.Text = area, false, isSticky, message
  event.FontSize = (fontSize and fontSize >= 12 and fontSize <= 64) and fontSize or FBT.GetFontSize(area, nil, false)
- event.FontPath = FBT.AVAILABLE_FONTS[fontIndex] and FBT.AVAILABLE_FONTS[fontIndex].Path or FBT.GetFontPath(area, nil, false)
+ local font = FBT.FONT_BY_NAME[fontName or ""]
+ event.FontPath = font and font.Path or FBT.GetFontPath(area, nil, false)
  event.FontOutline = FBT.AVAILABLE_OUTLINES[outlineIndex] and FBT.AVAILABLE_OUTLINES[outlineIndex].Style or FBT.GetFontOutline(area, nil, false)
  event.ColorR, event.ColorG, event.ColorB = Channel(colorR), Channel(colorG), Channel(colorB)
  event.Texture = texture
