@@ -1010,72 +1010,212 @@ local function BuildTriggers(page)
 end
 
 -------------------------------------------------------------------------------------
--- Filters tab (suppressions).
+-- Filters tab (suppressions). Filters can sit in groups: a group's row folds
+-- it, renames it, turns all its filters on or off and adds a filter to it.
+-- Groups only order the list; every enabled filter hides what it matches.
 -------------------------------------------------------------------------------------
 
+local function CustomNumber(key) return tonumber(string.match(key, "^MSBT_SUPPRESSION_CUSTOM(%d+)$")) end
+
+-- Custom filters first, newest on top; the built-in ones follow by key.
+local function FilterOrder(a, b)
+ local ca, cb = CustomNumber(a), CustomNumber(b)
+ if ca and cb then return ca > cb end
+ if ca or cb then return ca ~= nil end
+ return a < b
+end
+
+local function FindGroup(name)
+ for i, group in ipairs(Profile().FilterGroups) do if group.Name == name then return group, i end end
+end
+
+-- The list as it shows: filters with no group, then each group and, unless it
+-- is folded, its filters. An entry is {key = filter key} or {group = group}.
+local function FilterList()
+ local members, loose, list = {}, {}, {}
+ for _, group in ipairs(Profile().FilterGroups) do members[group.Name] = {} end
+ for key, filter in pairs(Profile().Suppressions) do
+  table.insert(filter.Group and members[filter.Group] or loose, key)
+ end
+ table.sort(loose, FilterOrder)
+ for _, key in ipairs(loose) do table.insert(list, {key = key}) end
+ for _, group in ipairs(Profile().FilterGroups) do
+  local keys = members[group.Name]
+  table.sort(keys, FilterOrder)
+  table.insert(list, {group = group, members = keys})
+  if not group.Collapsed then
+   for _, key in ipairs(keys) do table.insert(list, {key = key, grouped = true}) end
+  end
+ end
+ return list
+end
+
+local function NewFilter(group)
+ local n = 1
+ for key in pairs(Profile().Suppressions) do
+  local number = CustomNumber(key)
+  if number and number >= n then n = number + 1 end
+ end
+ local key = "MSBT_SUPPRESSION_CUSTOM" .. n
+ Profile().Suppressions[key] = {Enabled = true, SearchPattern = "New filter", Group = group}
+ return key
+end
+
+local function RenameGroup(group, name)
+ if name == "" or FindGroup(name) then return end
+ for _, filter in pairs(Profile().Suppressions) do if filter.Group == group.Name then filter.Group = name end end
+ group.Name = name
+end
+
+-- The group goes; its filters stay, with no group.
+local function DeleteGroup(group)
+ local _, index = FindGroup(group.Name)
+ for _, filter in pairs(Profile().Suppressions) do if filter.Group == group.Name then filter.Group = nil end end
+ table.remove(Profile().FilterGroups, index)
+end
+
+-- No group, then each group in turn.
+local function StepGroup(filter, step)
+ local groups = Profile().FilterGroups
+ local count = #groups + 1
+ local _, index = FindGroup(filter.Group)
+ index = ((index or 0) + step + count) % count
+ filter.Group = index > 0 and groups[index].Name or nil
+end
+
 local function BuildFilters(page)
- local rows, pager = {}, nil
+ local rows, pager, list = {}, nil, {}
+ -- Turns to the page that shows the first entry for which match is true.
+ local function ShowEntry(match)
+  list = FilterList()
+  for i, entry in ipairs(list) do
+   if match(entry) then pager.page = math.ceil(i / ROWS_PER_PAGE); break end
+  end
+  Refresh()
+ end
  layout:Section(page, true)
  layout:Heading(page, L, "Hide messages that contain")
  for i = 1, ROWS_PER_PAGE do
-  local row = UI.Row("FBT_FilterRow" .. i, page, 0, 0, WIDTH - 56)
-  local function Filter() return Profile().Suppressions[row.key] end
-  row.show = UI.Switch("FBT_FilterRow" .. i .. "On", row, "", "Turn this filter on or off.", 4, -5, function(value)
+  local name = "FBT_FilterRow" .. i
+  local row = UI.Row(name, page, 0, 0, WIDTH - 56)
+  local function Entry() return list[row.index] end
+  local function Filter() return Profile().Suppressions[Entry().key] end
+  local function Group() return Entry().group end
+  -- A filter: on/off, its text, its group.
+  row.show = UI.Switch(name .. "On", row, "", "Turn this filter on or off.", 4, -5, function(value)
    Filter().Enabled = value
+   Refresh()
   end, 20)
-  row.pattern = MessageButton("FBT_FilterRow" .. i .. "Pattern", row, 40, 460, function()
+  row.pattern = MessageButton(name .. "Pattern", row, 40, 300, function()
    EditInline(row.pattern, Filter().SearchPattern, function(text)
     Filter().SearchPattern = text
     Refresh()
    end)
   end)
   UI.Tooltip(row.pattern, "Hides every message whose text or spell name contains this text.")
-  row.delete = UI.Button("FBT_FilterRow" .. i .. "Delete", row, "X", 512, -2, 26, function()
-   Profile().Suppressions[row.key] = nil
+  row.group = Cycle(name .. "Group", row, 356, -2, 148, function(step)
+   StepGroup(Filter(), step)
+   Refresh()
+  end)
+  -- A group: fold, name, all on/off, add a filter.
+  row.fold = UI.Button(name .. "Fold", row, "-", 4, -2, 24, function()
+   Group().Collapsed = not Group().Collapsed or nil
    Refresh()
   end, {ghost = true})
+  UI.Tooltip(row.fold, "Fold or unfold this group.")
+  row.title = MessageButton(name .. "Title", row, 32, 300, function()
+   EditInline(row.title, Group().Name, function(text)
+    RenameGroup(Group(), text)
+    Refresh()
+   end)
+  end)
+  UI.Tooltip(row.title, "Click to rename this group.")
+  row.all = UI.Switch(name .. "All", row, "", "Turn every filter in this group on or off.", 428, -5, function(value)
+   for _, key in ipairs(Entry().members) do Profile().Suppressions[key].Enabled = value end
+   Refresh()
+  end, 20)
+  row.add = UI.Button(name .. "Add", row, "+", 478, -2, 26, function()
+   local group = Group()
+   group.Collapsed = nil
+   local key = NewFilter(group.Name)
+   ShowEntry(function(entry) return entry.key == key end)
+  end, {ghost = true})
+  UI.Tooltip(row.add, "Add a filter to this group.")
+  row.delete = UI.Button(name .. "Delete", row, "X", 512, -2, 26, function()
+   local entry = Entry()
+   if entry.group then DeleteGroup(entry.group) else Profile().Suppressions[entry.key] = nil end
+   Refresh()
+  end, {ghost = true})
+  row.filterParts = {row.show, row.pattern, row.group}
+  row.groupParts = {row.fold, row.title, row.all, row.add}
   rows[i] = row
  end
- -- One line at every width: the text takes what the switch and X leave.
+ -- In the window one line each; narrower, a filter's group goes on a second line.
+ -- A group's filters are indented under it.
  ListBlock(page, rows, function(row, wide, width)
-  row.pattern:SetWidth(wide and 460 or width - 76)
+  local entry = list[row.index]
   Move(row.delete, row, width - 32, -2)
-  return 26
+  if entry and entry.group then
+   row:SetHeight(26)
+   row.title:SetWidth(wide and 300 or width - 156)
+   Move(row.all, row, width - 116, -5); Move(row.add, row, width - 66, -2)
+   return 26
+  end
+  local indent = entry and entry.grouped and 20 or 0
+  Move(row.show, row, 4 + indent, -5); Move(row.pattern, row, 40 + indent, -2)
+  if wide then
+   row:SetHeight(26)
+   row.pattern:SetWidth(300 - indent)
+   Move(row.group, row, 356, -2)
+   return 26
+  end
+  row:SetHeight(52)
+  row.pattern:SetWidth(width - 76 - indent)
+  Move(row.group, row, 40 + indent, -28)
+  return 52
  end)
  pager = Pager("FBT_FilterPager", page, function(step) pager.page = pager.page + step; Refresh() end)
+ -- A new filter goes to the top of the list.
  layout:Footer(page, UI.Button("FBT_FilterAdd", page, "Add filter", 0, 0, 140, function()
-  -- One above the highest number, so the newest filter sorts first.
-  local n = 1
-  for key in pairs(Profile().Suppressions) do
-   local number = tonumber(string.match(key, "^MSBT_SUPPRESSION_CUSTOM(%d+)$"))
-   if number and number >= n then n = number + 1 end
-  end
-  Profile().Suppressions["MSBT_SUPPRESSION_CUSTOM" .. n] = {Enabled = true, SearchPattern = "New filter"}
+  NewFilter(nil)
   pager.page = 1
   Refresh()
  end), LEFT)
+ layout:Footer(page, UI.Button("FBT_FilterAddGroup", page, "Add group", 0, 0, 140, function()
+  local name, n = "New group", 1
+  while FindGroup(name) do n = n + 1; name = "New group " .. n end
+  local group = {Name = name}
+  table.insert(Profile().FilterGroups, group)
+  ShowEntry(function(entry) return entry.group == group end)
+ end), WIDTH - LEFT - 140)
 
  return function()
-  -- Custom filters first, newest on top; the built-in ones follow by name.
-  local keys = SortedKeys(Profile().Suppressions)
-  local function Custom(key) return tonumber(string.match(key, "^MSBT_SUPPRESSION_CUSTOM(%d+)$")) end
-  table.sort(keys, function(a, b)
-   local ca, cb = Custom(a), Custom(b)
-   if ca and cb then return ca > cb end
-   if ca or cb then return ca ~= nil end
-   return a < b
-  end)
-  local offset = pager:Set(table.getn(keys))
+  list = FilterList()
+  local offset = pager:Set(#list)
   for i, row in ipairs(rows) do
-   local key = keys[offset + i]
-   if key then
-    local filter = Profile().Suppressions[key]
-    row.key = key
-    UI.Sync(row.show, filter.Enabled)
-    row.pattern:SetText(filter.SearchPattern or "")
-    row:Show()
-   else
+   row.index = offset + i
+   local entry = list[row.index]
+   if not entry then
     row:Hide()
+   else
+    local group = entry.group
+    for _, part in ipairs(row.filterParts) do if group then part:Hide() else part:Show() end end
+    for _, part in ipairs(row.groupParts) do if group then part:Show() else part:Hide() end end
+    if group then
+     local count, allOn = #entry.members, #entry.members > 0
+     for _, key in ipairs(entry.members) do if not Profile().Suppressions[key].Enabled then allOn = false end end
+     row.fold:SetText(group.Collapsed and "+" or "-")
+     row.title:SetText(group.Name .. "  (" .. count .. ")")
+     UI.Sync(row.all, allOn, count > 0)
+     UI.Tooltip(row.delete, "Delete this group. Its filters stay, with no group.")
+    else
+     local filter = Profile().Suppressions[entry.key]
+     UI.Sync(row.show, filter.Enabled)
+     row.pattern:SetText(filter.SearchPattern or "")
+     row.group.text:SetText(filter.Group and FindGroup(filter.Group) and filter.Group or "No group")
+     UI.Tooltip(row.delete, "Delete this filter.")
+    end
+    row:Show()
    end
   end
  end
@@ -1108,9 +1248,13 @@ local function BuildProfiles(page)
    Options.LoadProfile(row.name)
    Refresh()
   end)
-  row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  row.label:SetPoint("LEFT", row.radio, "RIGHT", 8, 0)
-  UI.Color(row.label, "text")
+  -- The name; a click renames the profile.
+  row.rename = MessageButton("FBT_ProfileRow" .. i .. "Rename", row, 24, 200, function()
+   EditInline(row.rename, row.name, function(text)
+    FBT.RenameProfile(row.name, text)
+    Refresh()
+   end)
+  end)
   row.delete = UI.Button("FBT_ProfileRow" .. i .. "Delete", row, "Delete", 236, -2, 60, function()
    Options.RetireColorPicker(true)
    FBT.DeleteProfile(row.name)
@@ -1123,15 +1267,17 @@ local function BuildProfiles(page)
 
  local newHeading = UI.Heading(page, "New profile", 0, 0)
  local name = TextBox("FBT_ProfileName", page, 0, 0, 172)
- local create = UI.Button("FBT_ProfileCreate", page, "Create", 0, 0, 172, function()
-  local text = name:GetText()
-  if text ~= "" and not FBT.ProfileExists(text) then
-   FBT.CreateProfile(text)
+ local function New(from)
+  if FBT.CreateProfile(name:GetText(), from) then
    name:SetText("")
    Refresh()
   end
- end)
- local note = UI.Label(page, "New profiles start from the defaults.", 0, 0, "GameFontDisableSmall")
+ end
+ local create = UI.Button("FBT_ProfileCreate", page, "Create", 0, 0, 172, function() New() end)
+ UI.Tooltip(create, "A new profile with the default settings.")
+ local copy = UI.Button("FBT_ProfileCopy", page, "Copy current", 0, 0, 172, function() New(FBT.CurrentProfileName()) end)
+ UI.Tooltip(copy, "A new profile with the settings of the one you use.")
+ local note = UI.Label(page, "Click a name to rename it.", 0, 0, "GameFontDisableSmall")
  local reset = UI.Button("FBT_ProfileReset", page, "Reset this profile", 0, 0, 172, function()
   Options.RetireColorPicker(true)
   FBT.ResetProfile(FBT.CurrentProfileName(), true)
@@ -1148,6 +1294,7 @@ local function BuildProfiles(page)
    if wide or row:IsShown() then
     local rowWidth = wide and 300 or width
     Move(row, page, x, y); row:SetWidth(rowWidth)
+    row.rename:SetWidth(rowWidth - 96)
     Move(row.delete, row, rowWidth - 64, -2)
     y = y - 28
    end
@@ -1155,10 +1302,10 @@ local function BuildProfiles(page)
   local newX, newY = x + 324, top
   if not wide then newX, newY = x, y - 14 end
   Move(newHeading, page, newX, newY); Move(name, page, newX, newY - 20)
-  Move(create, page, newX, newY - 48); Move(note, page, newX, newY - 76)
-  Move(reset, page, newX, newY - 112)
+  Move(create, page, newX, newY - 48); Move(copy, page, newX, newY - 76)
+  Move(note, page, newX, newY - 104); Move(reset, page, newX, newY - 136)
   if wide then return top - y end
-  return top - newY + 136
+  return top - newY + 160
  end})
 
  return function()
@@ -1167,10 +1314,13 @@ local function BuildProfiles(page)
   for i, row in ipairs(rows) do
    local profileName = names[offset + i]
    if profileName then
+    local isDefault = profileName == FBT.DEFAULT_PROFILE_NAME
     row.name = profileName
-    row.label:SetText(profileName)
+    row.rename:SetText(profileName)
+    UI.SetEnabled(row.rename, not isDefault)
+    UI.Tooltip(row.rename, isDefault and "Default keeps its name. Copy it to make one you can rename." or "Click to rename this profile.")
     UI.SetCheck(row.radio, profileName == FBT.CurrentProfileName())
-    UI.SetEnabled(row.delete, profileName ~= FBT.DEFAULT_PROFILE_NAME)
+    UI.SetEnabled(row.delete, not isDefault)
     row:Show()
    else
     row:Hide()

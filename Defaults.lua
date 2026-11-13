@@ -259,6 +259,10 @@ local function Trigger(message, r, g, b, sticky, settings, icon)
  }
 end
 
+-- The group the built-in shaman filters start in.
+FBT.TOTEM_FILTER_GROUP = "Shaman totems"
+local TOTEMS = FBT.TOTEM_FILTER_GROUP
+
 local CASTERS = {DRUID = true, HUNTER = true, MAGE = true, PALADIN = true, PRIEST = true, SHAMAN = true, WARLOCK = true}
 
 FBT.DEFAULT_CONFIG = {
@@ -310,16 +314,19 @@ FBT.DEFAULT_CONFIG = {
   MSBT_TRIGGER_OVERPOWER = Trigger("Overpower!", 1, 1, 0, true,
    {Classes = {WARRIOR = true}, TriggerType = 10}, "ability_meleedamage"),
  },
- -- Filters hide messages that contain the text.
+ -- Filters hide messages that contain the text. A filter's Group only places
+ -- it in the Filters tab, under that group.
  Suppressions = {
   MSBT_SUPPRESSION_WISDOM_MANA_GAINS = {Enabled = true, SearchPattern = "Judgement of Wisdom"},
   MSBT_SUPPRESSION_ROGUE_VIGOR = {Enabled = true, SearchPattern = "Vigor"},
-  MSBT_SUPPRESSION_SHAMAN_WINDFURY = {Enabled = false, SearchPattern = "Windfury"},
-  MSBT_SUPPRESSION_SHAMAN_HEALING_STREAM = {Enabled = true, SearchPattern = "Healing Stream"},
-  MSBT_SUPPRESSION_SHAMAN_MANA_SPRING = {Enabled = true, SearchPattern = "Mana Spring"},
-  MSBT_SUPPRESSION_SHAMAN_GRACE_OF_AIR = {Enabled = false, SearchPattern = "Grace of Air"},
-  MSBT_SUPPRESSION_SHAMAN_STRENGTH_OF_EARTH = {Enabled = true, SearchPattern = "Strength of Earth"},
-  MSBT_SUPPRESSION_SHAMAN_STONESKIN = {Enabled = true, SearchPattern = "Stoneskin"},
-  MSBT_SUPPRESSION_SHAMAN_LIGHTNING_SHIELD = {Enabled = true, SearchPattern = "Lightning Shield"},
+  MSBT_SUPPRESSION_SHAMAN_WINDFURY = {Enabled = false, SearchPattern = "Windfury", Group = TOTEMS},
+  MSBT_SUPPRESSION_SHAMAN_HEALING_STREAM = {Enabled = true, SearchPattern = "Healing Stream", Group = TOTEMS},
+  MSBT_SUPPRESSION_SHAMAN_MANA_SPRING = {Enabled = true, SearchPattern = "Mana Spring", Group = TOTEMS},
+  MSBT_SUPPRESSION_SHAMAN_GRACE_OF_AIR = {Enabled = false, SearchPattern = "Grace of Air", Group = TOTEMS},
+  MSBT_SUPPRESSION_SHAMAN_STRENGTH_OF_EARTH = {Enabled = true, SearchPattern = "Strength of Earth", Group = TOTEMS},
+  MSBT_SUPPRESSION_SHAMAN_STONESKIN = {Enabled = true, SearchPattern = "Stoneskin", Group = TOTEMS},
+  MSBT_SUPPRESSION_SHAMAN_LIGHTNING_SHIELD = {Enabled = true, SearchPattern = "Lightning Shield", Group = TOTEMS},
  },
+ -- The filter groups in their order; Collapsed folds one in the Filters tab.
+ FilterGroups = {{Name = TOTEMS}},
 }

@@ -795,17 +795,21 @@ local function UseProfile()
  FBT.ApplyGameDamageFont()
 end
 
+-- Triggers, filters and filter groups are the player's own entries: the sweep
+-- and the defaults leave them as they are.
+local PLAYER_ENTRIES = {Triggers = true, Suppressions = true, FilterGroups = true}
+
 -- One sweep at load clears every saved key that no default owns, so a retired
 -- setting needs no line of its own (KNOWN_PATTERNS KP-64). It reaches the
--- profile's keys and the keys of its tables; triggers and filters are the
--- player's own entries and keep all of theirs.
-local DB_KEYS = {UserDisabled = true, Profiles = true}
+-- profile's keys and the keys of its tables, but not the player's entries.
+-- Renamed maps a renamed profile's old name to its new one.
+local DB_KEYS = {UserDisabled = true, Profiles = true, Renamed = true}
 local function Sweep(target, defaults, deeper)
  for key, value in pairs(target) do
   local default = defaults[key]
   if default == nil then
    target[key] = nil
-  elseif deeper and type(value) == "table" and type(default) == "table" and key ~= "Triggers" and key ~= "Suppressions" then
+  elseif deeper and type(value) == "table" and type(default) == "table" and not PLAYER_ENTRIES[key] then
    Sweep(value, default, false)
   end
  end
@@ -828,12 +832,22 @@ local function FontNames(t)
  end
 end
 
+-- 2.3.0 had no filter groups: the built-in shaman filters go in one. Remove
+-- once no saved profile lacks FilterGroups.
+local function FilterGroups(profile)
+ if type(profile.FilterGroups) == "table" or type(profile.Suppressions) ~= "table" then return end
+ profile.FilterGroups = {{Name = FBT.TOTEM_FILTER_GROUP}}
+ for key, filter in pairs(profile.Suppressions) do
+  if string_find(key, "^MSBT_SUPPRESSION_SHAMAN_") then filter.Group = FBT.TOTEM_FILTER_GROUP end
+ end
+end
+
 -- Defaults the profile lacks. Triggers and filters the player deleted stay deleted.
 local function FillMissing(target, defaults)
  for key, value in pairs(defaults) do
   if target[key] == nil then
    target[key] = type(value) == "table" and FBT.CopyTable(value) or value
-  elseif type(target[key]) == "table" and type(value) == "table" and key ~= "Triggers" and key ~= "Suppressions" then
+  elseif type(target[key]) == "table" and type(value) == "table" and not PLAYER_ENTRIES[key] then
    FillMissing(target[key], value)
   end
  end
@@ -843,6 +857,7 @@ function FBT.UpdateProfiles()
  for _, profile in pairs(FostercareBattleTextDB.Profiles) do
   if type(profile) == "table" then
    FontNames(profile)
+   FilterGroups(profile)
    Sweep(profile, FBT.DEFAULT_CONFIG, true)
    FillMissing(profile, FBT.DEFAULT_CONFIG)
   end
@@ -869,9 +884,24 @@ function FBT.SelectProfile(name)
  UseProfile()
 end
 
-function FBT.CreateProfile(name)
+-- A new profile from the defaults, or a copy of the profile `from`.
+function FBT.CreateProfile(name, from)
  if name == nil or name == "" or FBT.ProfileExists(name) then return end
- FostercareBattleTextDB.Profiles[name] = FBT.CopyTable(FBT.DEFAULT_CONFIG)
+ local profiles = FostercareBattleTextDB.Profiles
+ profiles[name] = FBT.CopyTable(from and profiles[from] or FBT.DEFAULT_CONFIG)
+ return true
+end
+
+-- Default keeps its name: it is what a character falls back to. Another
+-- character that used the old name follows it at its next login (Init).
+function FBT.RenameProfile(old, new)
+ if old == FBT.DEFAULT_PROFILE_NAME or not FBT.ProfileExists(old) or new == nil or new == "" or FBT.ProfileExists(new) then return end
+ local db = FostercareBattleTextDB
+ db.Profiles[new], db.Profiles[old] = db.Profiles[old], nil
+ db.Renamed = db.Renamed or {}
+ db.Renamed[old] = new
+ if FostercareBattleTextCharDB.CurrentProfile == old then FostercareBattleTextCharDB.CurrentProfile = new end
+ return true
 end
 
 function FBT.DeleteProfile(name)
@@ -920,6 +950,11 @@ local function Init()
  -- Both saved files held "Default" on 2026-11-13, so other characters lose nothing.
  char.CurrentProfile = char.CurrentProfile or db.CurrentProfile
  db.CurrentProfile = nil
+ -- A profile renamed on another character: follow its new names.
+ local renamed, hops = type(db.Renamed) == "table" and db.Renamed or {}, 0
+ while char.CurrentProfile and not db.Profiles[char.CurrentProfile] and renamed[char.CurrentProfile] and hops < 20 do
+  char.CurrentProfile, hops = renamed[char.CurrentProfile], hops + 1
+ end
  if not (char.CurrentProfile and db.Profiles[char.CurrentProfile]) then char.CurrentProfile = FBT.DEFAULT_PROFILE_NAME end
  if not db.Profiles[char.CurrentProfile] then db.Profiles[char.CurrentProfile] = FBT.CopyTable(FBT.DEFAULT_CONFIG) end
  FBT.UpdateProfiles()

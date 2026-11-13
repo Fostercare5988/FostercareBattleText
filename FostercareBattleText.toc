@@ -3,7 +3,7 @@
 ## Notes: Scrolling combat text from ClassicAPI's combat log. Formerly Mik's Scrolling Battle Text.
 ## Author: Mik, Fostercare5988
 ## X-Maintainer: Fostercare5988
-## Version: 2.3.0
+## Version: 2.4.0
 ## SavedVariables: FostercareBattleTextDB
 ## SavedVariablesPerCharacter: FostercareBattleTextCharDB
 ## X-Category: Combat

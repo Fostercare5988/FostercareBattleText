@@ -77,15 +77,25 @@ changes, **Cancel** drops them.
 
 A filter hides every message whose text or spell name contains its text, for
 example `Vigor` or `Judgement of Wisdom`. Click a filter to edit it, **X**
-deletes it, **Add filter** adds one.
+deletes it, **Add filter** adds one at the top.
+
+Filters can sit in groups; the built-in shaman filters start in "Shaman
+totems". A group's row has **-** or **+** to fold or unfold it, its name (click
+to rename), one switch that turns all its filters on or off, **+** to add a
+filter to it, and **X** to delete the group (its filters stay, with no group).
+The arrows beside a filter move it to another group. **Add group** adds one.
+Groups only sort the list: every filter that is on hides what it matches.
 
 ## Profiles
 
 Profiles are shared by your characters, and each character uses its own
-choice: click a profile's dot to use it on this character.
-**Create** adds a profile with the default settings, **Delete** removes one (not
-Default), and **Reset this profile** puts the current profile back to the
-defaults, triggers and filters included. `/fbt reset` does the same.
+choice: click a profile's dot to use it on this character. Type a name, then
+**Create** adds a profile with the default settings, and **Copy current** adds
+one with the settings of the profile you use. Click a profile's name to rename
+it; your other characters on it follow the new name. **Delete** removes a
+profile, and **Reset this profile** puts the current one back to the defaults,
+triggers and filters included (`/fbt reset` does the same). Default cannot be
+renamed or deleted: copy it to make one you can.
 
 ## Commands and other addons
 
