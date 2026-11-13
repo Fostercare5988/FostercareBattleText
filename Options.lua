@@ -1028,14 +1028,27 @@ local function BuildFilters(page)
  end)
  pager = Pager("FBT_FilterPager", page, function(step) pager.page = pager.page + step; Refresh() end)
  layout:Footer(page, UI.Button("FBT_FilterAdd", page, "Add filter", 0, 0, 140, function()
+  -- One above the highest number, so the newest filter sorts first.
   local n = 1
-  while Profile().Suppressions["MSBT_SUPPRESSION_CUSTOM" .. n] do n = n + 1 end
+  for key in pairs(Profile().Suppressions) do
+   local number = tonumber(string.match(key, "^MSBT_SUPPRESSION_CUSTOM(%d+)$"))
+   if number and number >= n then n = number + 1 end
+  end
   Profile().Suppressions["MSBT_SUPPRESSION_CUSTOM" .. n] = {Enabled = true, SearchPattern = "New filter"}
+  pager.page = 1
   Refresh()
  end), LEFT)
 
  return function()
+  -- Custom filters first, newest on top; the built-in ones follow by name.
   local keys = SortedKeys(Profile().Suppressions)
+  local function Custom(key) return tonumber(string.match(key, "^MSBT_SUPPRESSION_CUSTOM(%d+)$")) end
+  table.sort(keys, function(a, b)
+   local ca, cb = Custom(a), Custom(b)
+   if ca and cb then return ca > cb end
+   if ca or cb then return ca ~= nil end
+   return a < b
+  end)
   local offset = pager:Set(table.getn(keys))
   for i, row in ipairs(rows) do
    local key = keys[offset + i]
