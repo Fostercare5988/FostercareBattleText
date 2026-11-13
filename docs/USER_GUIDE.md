@@ -50,7 +50,10 @@ nothing is not shown. The game knows the overheal only for you, your group and
 units in view; other heals show their whole amount. A damage shield names its spell, such as Thorns, when
 the game says which. Killing blows count a player kill even when you never
 targeted the player. Power Losses shows mana, rage or energy drained from you.
-Reputation changes show the faction and amount. Experience Gains shows every
+Ticks of damage and healing over time and power gains wait 3 seconds and show
+as one line, such as `150 [3 Hits]`. A buff or debuff that gains a stack shows
+the count, such as `[Sunder Armor 3]` (Buff Stacks and Debuff Stacks on
+Notices). Reputation changes show the faction and amount. Experience Gains shows every
 gain: kills, quests and exploring.
 
 ## Triggers

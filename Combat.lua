@@ -1,7 +1,8 @@
 -------------------------------------------------------------------------------------
 -- FostercareBattleText: combat events and triggers.
--- Everything in combat comes from ClassicAPI's COMBAT_LOG_EVENT_UNFILTERED;
--- honor and skill gains, which have no structured event, from their chat line.
+-- Everything in combat comes from ClassicAPI's combat log, filtered by the
+-- engine to you and your pet; honor and skill gains, which have no structured
+-- event, from their chat line.
 -------------------------------------------------------------------------------------
 
 local _, FBT = ...
@@ -86,6 +87,8 @@ Combat.NOTIFICATIONTYPE_SKILL_GAIN = 13
 Combat.NOTIFICATIONTYPE_EXPERIENCE_GAIN = 14
 Combat.NOTIFICATIONTYPE_PC_KILLING_BLOW = 15
 Combat.NOTIFICATIONTYPE_NPC_KILLING_BLOW = 16
+Combat.NOTIFICATIONTYPE_DEBUFF_STACK = 17
+Combat.NOTIFICATIONTYPE_BUFF_STACK = 18
 
 -- Saved trigger type numbers; 6 was the retired Search Pattern type.
 Combat.TRIGGERTYPE_SELF_HEALTH = 1
@@ -229,15 +232,12 @@ local function Damage(directionType, actionType, hitType, damageType, amount, ef
  return data
 end
 
--- Power amounts read "25 Energy"; the spell is the effect name.
+-- A power amount stays a number, so gains add up when they merge; the text
+-- reads "25 Energy". The spell is the effect name.
 local function Notice(notificationType, amount, effectName, powerName)
  local data = NewEvent(Combat.EVENTTYPE_NOTIFICATION)
  data.NotificationType = notificationType
- if powerName then
-  data.Amount, data.EffectName = (amount or 0) .. " " .. powerName, effectName
- else
-  data.Amount, data.EffectName = amount, effectName
- end
+ data.Amount, data.EffectName, data.PowerName = amount, effectName, powerName
  return data
 end
 
@@ -407,14 +407,19 @@ handlers.SPELL_PERIODIC_DRAIN = Drain
 handlers.SPELL_LEECH = Drain
 handlers.SPELL_PERIODIC_LEECH = Drain
 
--- Your auras: spellId, spellName, school, auraType. A stack gain shows again
--- like a new aura; a stack loss (REMOVED_DOSE) is not a fade.
+-- Your auras: spellId, spellName, school, auraType, then for a stack gain the
+-- stacks it now has. A stack loss (REMOVED_DOSE) is not a fade.
 local function AuraGained(sourceGUID, destGUID)
  if destGUID ~= playerGUID then return end
  local spellName = v13 or SpellName(v12)
  if not spellName then return end
- if cSubevent == "SPELL_AURA_APPLIED" and auraGainTriggers[spellName] then FireTriggers(auraGainTriggers[spellName]) end
- local data = Notice(v15 == "DEBUFF" and Combat.NOTIFICATIONTYPE_DEBUFF or Combat.NOTIFICATIONTYPE_BUFF, nil, spellName)
+ local debuff, data = v15 == "DEBUFF"
+ if cSubevent == "SPELL_AURA_APPLIED" then
+  if auraGainTriggers[spellName] then FireTriggers(auraGainTriggers[spellName]) end
+  data = Notice(debuff and Combat.NOTIFICATIONTYPE_DEBUFF or Combat.NOTIFICATIONTYPE_BUFF, nil, spellName)
+ else
+  data = Notice(debuff and Combat.NOTIFICATIONTYPE_DEBUFF_STACK or Combat.NOTIFICATIONTYPE_BUFF_STACK, v16, spellName)
+ end
  data.SpellId = v12
  Send(data)
 end
@@ -436,8 +441,26 @@ handlers.PARTY_KILL = function(sourceGUID)
  Send(Notice(player and Combat.NOTIFICATIONTYPE_PC_KILLING_BLOW or Combat.NOTIFICATIONTYPE_NPC_KILLING_BLOW, nil, cDestName))
 end
 
--- The whole nearby combat stream arrives here; events that involve neither you
--- nor your pet return after the GUID compares.
+-- The engine filters the combat log (ClassicAPI API.md, CombatLogAddFilter):
+-- COMBAT_LOG_EVENT brings only the subevents above, and only when their source
+-- or target is you, your pets or the objects you control, so the combat of
+-- others never reaches Lua. The client has one filter, kept over /reload: FBT
+-- owns it while it is on, and no other installed addon uses it (2026-11-13).
+local SUBEVENTS
+do
+ local names = {}
+ for name in pairs(handlers) do names[#names + 1] = name end
+ SUBEVENTS = table.concat(names, ",")
+end
+local function SetCombatLogFilter()
+ CombatLogResetFilter()
+ CombatLogAddFilter(SUBEVENTS, COMBATLOG_FILTER_MINE)
+ CombatLogAddFilter(SUBEVENTS, nil, COMBATLOG_FILTER_MINE)
+ CombatLogAddFilter(SUBEVENTS, COMBATLOG_FILTER_MY_PET)
+ CombatLogAddFilter(SUBEVENTS, nil, COMBATLOG_FILTER_MY_PET)
+end
+
+-- Your totems and guardians pass the filter too; they return after the GUID compares.
 combatLogFrame:SetScript("OnEvent", function()
  local sourceGUID, destGUID = arg4, arg8
  if sourceGUID ~= playerGUID and destGUID ~= playerGUID and
@@ -628,7 +651,8 @@ end
 function Combat.RegisterEvents()
  RefreshGUIDs()
  for _, name in ipairs(EVENTS) do frame:RegisterEvent(name) end
- combatLogFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+ SetCombatLogFilter()
+ combatLogFrame:RegisterEvent("COMBAT_LOG_EVENT")
  lastXP, lastXPMax = UnitXP("player"), UnitXPMax("player")
  eventsOn = true
  Combat.UpdateUnitEvents()
@@ -637,6 +661,7 @@ end
 function Combat.UnregisterEvents()
  frame:UnregisterAllEvents()
  combatLogFrame:UnregisterAllEvents()
+ CombatLogResetFilter()
  lastXP, lastXPMax = nil, nil
  eventsOn = false
  Combat.UpdateUnitEvents()

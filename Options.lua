@@ -98,7 +98,9 @@ local EVENTS = {
  },
  Notification = {
   {Type="MSBT_EVENTTYPE_NOTIFICATION_DEBUFF", Label="Debuffs", Tip="Show debuffs you are afflicted by.", Codes="%s - Name of the debuff."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_DEBUFF_STACK", Label="Debuff Stacks", Tip="Show when a debuff on you gains a stack.", Codes="%s - Name of the debuff.\n%a - Number of stacks."},
   {Type="MSBT_EVENTTYPE_NOTIFICATION_BUFF", Label="Buffs", Tip="Show buffs you receive.", Codes="%s - Name of the buff."},
+  {Type="MSBT_EVENTTYPE_NOTIFICATION_BUFF_STACK", Label="Buff Stacks", Tip="Show when a buff on you gains a stack.", Codes="%s - Name of the buff.\n%a - Number of stacks."},
   {Type="MSBT_EVENTTYPE_NOTIFICATION_BUFF_FADE", Label="Buff Fades", Tip="Show buffs and debuffs that have faded from you.", Codes="%s - Name of the buff/debuff."},
   {Type="MSBT_EVENTTYPE_NOTIFICATION_COMBAT_ENTER", Label="Enter Combat", Tip="Show when you have entered combat.", Codes="None."},
   {Type="MSBT_EVENTTYPE_NOTIFICATION_COMBAT_LEAVE", Label="Leave Combat", Tip="Show when you have left combat.", Codes="None."},

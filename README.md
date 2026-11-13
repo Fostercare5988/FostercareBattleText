@@ -40,6 +40,12 @@ keep their own floating text. Combat text does not capture mouse input.
 shows a line; `displayType` is `FostercareBattleText.DISPLAYTYPE_INCOMING`,
 `_OUTGOING` or `_NOTIFICATION`, and the colour channels are 0-255.
 
+While it is on, FostercareBattleText sets the client's combat log filter
+(`CombatLogAddFilter`) to you and your pets, so the engine sends it only your
+own combat. That filter is shared: an addon that reads `COMBAT_LOG_EVENT` or
+the kept combat log entries sees it. `COMBAT_LOG_EVENT_UNFILTERED` is not
+affected.
+
 ## License and credits
 
 Maintained by [Fostercare5988](https://github.com/Fostercare5988). Licensed under the MIT License.
